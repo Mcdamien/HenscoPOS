@@ -167,3 +167,6 @@ prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Product`.`id`
 prisma:query SELECT COUNT(`id`) AS `_count$id` FROM (SELECT `main`.`Inventory`.`id` FROM `main`.`Inventory` WHERE `main`.`Inventory`.`stock` > ? LIMIT ? OFFSET ?) AS `sub`
 prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Inventory`.`id` FROM `main`.`Inventory` WHERE (`main`.`Inventory`.`stock` > ? AND `main`.`Inventory`.`stock` < ?) LIMIT ? OFFSET ?) AS `sub`
  GET /api/dashboard/stats 200 in 467ms (compile: 75ms, render: 392ms)
+  Reload env: .env
+ GET / 200 in 43s (compile: 41s, render: 1379ms)
+ GET / 200 in 1584ms (compile: 1357ms, render: 227ms)
