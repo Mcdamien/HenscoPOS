@@ -174,3 +174,12 @@ prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Inventory`.`i
  GET / 200 in 5.0s (compile: 4.1s, render: 938ms)
 ✓ Finished filesystem cache database compaction in 2.6min
 ✓ Finished writing to filesystem cache in 2.6min
+  Reload env: .env.local
+ GET / 200 in 1653ms (compile: 1504ms, render: 149ms)
+  Reload env: .env.development.local
+ GET / 200 in 1144ms (compile: 927ms, render: 217ms)
+  Reload env: .env
+ GET / 200 in 1156ms (compile: 1075ms, render: 80ms)
+  Reload env: .env
+ GET / 200 in 1647ms (compile: 1498ms, render: 149ms)
+ GET / 200 in 1300ms (compile: 971ms, render: 329ms)
