@@ -82,6 +82,9 @@ export default function Home() {
             <LogOut className="w-5 h-5" />
             Logout
           </button>
+          <div className="mt-2">
+            <p className="text-center text-sm text-slate-400">By McDamien © 2026</p>
+          </div>
         </div>
       </nav>
 
