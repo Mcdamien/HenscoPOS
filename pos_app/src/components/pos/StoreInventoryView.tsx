@@ -169,18 +169,23 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
 
   const confirmReturn = async (productId: string) => {
     try {
-      const response = await fetch(`/api/returns/confirm`, {
+      const response = await fetch(`/api/inventory/confirm-return`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId })
+        body: JSON.stringify({ 
+          productId,
+          storeName: currentStore
+        })
       });
 
       if (response.ok) {
         // Remove the confirmed return from approvedReturns
         setApprovedReturns(prev => prev.filter(returnItem => returnItem.productId !== productId));
+        toast.success('Return alert cleared')
       }
     } catch (error) {
       console.error('Failed to confirm return:', error);
+      toast.error('Failed to clear return alert')
     }
   };
 

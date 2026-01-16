@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 interface CartItem {
   id: string
@@ -18,6 +19,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Cart is empty' },
         { status: 400 }
+      )
+    }
+
+    if (!ALLOWED_SHOPS.includes(store as any)) {
+      return NextResponse.json(
+        { error: 'Unauthorized store' },
+        { status: 403 }
       )
     }
 

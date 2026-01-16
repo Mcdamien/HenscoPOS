@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +10,10 @@ export async function GET(request: NextRequest) {
 
     // Build query filters
     const where: any = {
-      status
+      status,
+      store: {
+        name: { in: [...ALLOWED_SHOPS] }
+      }
     }
 
     // If storeId is provided, filter by store

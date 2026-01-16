@@ -123,11 +123,12 @@ export default function DashboardView() {
   }, [])
 
   const formatCurrency = (amount: number) => {
+    const safeAmount = typeof amount === 'number' ? amount : 0
     return new Intl.NumberFormat('en-GH', {
       style: 'currency',
       currency: 'GHS',
       currencyDisplay: 'code'
-    }).format(amount)
+    }).format(safeAmount)
   }
 
   // Group transactions by store
@@ -321,7 +322,7 @@ export default function DashboardView() {
                   <TableRow key={index}>
                     <TableCell className="font-medium">{shop.store}</TableCell>
                     <TableCell>
-                      {formatDateDDMMYYYY(shop.firstDate)} - {formatDateDDMMYYYY(shop.lastDate)}
+                      {shop.firstDate ? formatDateDDMMYYYY(shop.firstDate) : 'N/A'} - {shop.lastDate ? formatDateDDMMYYYY(shop.lastDate) : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-slate-50">
@@ -487,7 +488,7 @@ export default function DashboardView() {
             <DialogHeader className="flex-shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-emerald-600" />
-                All Transactions - {selectedShopTransactions[0]?.store}
+                All Transactions {selectedShopTransactions.length > 0 ? `- ${selectedShopTransactions[0].store}` : ''}
               </DialogTitle>
             </DialogHeader>
             

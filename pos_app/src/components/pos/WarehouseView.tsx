@@ -169,23 +169,6 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
     )
   }
 
-  const confirmReturn = async (productId: string) => {
-    try {
-      const response = await fetch(`/api/returns/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId })
-      });
-
-      if (response.ok) {
-        // Remove the confirmed return from pendingChanges
-        setPendingChanges(prev => prev.filter(change => change.productId !== productId || change.changeType !== 'return'));
-      }
-    } catch (error) {
-      console.error('Failed to confirm return:', error);
-    }
-  };
-
   return (
     <div className="p-8 h-full overflow-y-auto">
       <Card>
@@ -306,8 +289,7 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
                         {getTotalPendingReturnQty(product.id) > 0 && (
                           <Badge
                             variant="outline"
-                            className="bg-amber-50 border-amber-200 text-amber-700 text-xs cursor-pointer"
-                            onClick={() => confirmReturn(product.id)}
+                            className="bg-amber-50 border-amber-200 text-amber-700 text-xs"
                           >
                             ↩ {getTotalPendingReturnQty(product.id)} returning
                           </Badge>

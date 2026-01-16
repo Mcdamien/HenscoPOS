@@ -298,7 +298,7 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
                 <p className="text-sm text-slate-500">
                   Upload an Excel file (.xlsx) with the following columns:
                 </p>
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs font-mono grid grid-cols-4 gap-2 text-center">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-mono grid grid-cols-4 gap-2 text-center">
                   <div className="font-bold border-b pb-1">Name / Product</div>
                   <div className="font-bold border-b pb-1">Cost / Cost Price</div>
                   <div className="font-bold border-b pb-1">Price / Selling Price</div>
@@ -383,15 +383,15 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
               </Alert>
 
               <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 bg-slate-50 rounded-lg border">
+                <div className="text-center p-3 bg-slate-50 rounded-xl border">
                   <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Created</p>
                   <p className="text-2xl font-black text-emerald-600">{results.created}</p>
                 </div>
-                <div className="text-center p-3 bg-slate-50 rounded-lg border">
+                <div className="text-center p-3 bg-slate-50 rounded-xl border">
                   <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Updated</p>
                   <p className="text-2xl font-black text-blue-600">{results.updated}</p>
                 </div>
-                <div className="text-center p-3 bg-slate-50 rounded-lg border">
+                <div className="text-center p-3 bg-slate-50 rounded-xl border">
                   <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Errors</p>
                   <p className="text-2xl font-black text-red-600">{results.errors}</p>
                 </div>

@@ -766,7 +766,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-slate-600" />
@@ -873,7 +873,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
               {/* Preview based on report type */}
               {reportData.profitLoss && (
-                <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                <div className="bg-slate-50 p-4 rounded-xl space-y-3">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <p className="text-xs text-slate-500">Revenue</p>
@@ -898,7 +898,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
               )}
 
               {reportData.trialBalance && (
-                <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                <div className="bg-slate-50 p-4 rounded-xl space-y-3">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <p className="text-xs text-slate-500">Total Debits</p>
@@ -926,7 +926,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
               )}
 
               {reportData.balanceSheet && (
-                <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                <div className="bg-slate-50 p-4 rounded-xl space-y-3">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <p className="text-xs text-slate-500">Total Assets</p>
@@ -962,7 +962,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
     {/* Preview Modal */}
     <Dialog open={showPreview} onOpenChange={setShowPreview}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Eye className="w-5 h-5 text-slate-600" />
@@ -1000,7 +1000,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   {/* Revenue Section */}
                   <div>
                     <h3 className="text-lg font-semibold text-green-600 mb-3">REVENUE</h3>
-                    <div className="border rounded-lg overflow-hidden">
+                    <div className="border rounded-xl overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-green-50">
                           <tr>
@@ -1035,7 +1035,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   {/* Expenses Section */}
                   <div>
                     <h3 className="text-lg font-semibold text-red-600 mb-3">EXPENSES</h3>
-                    <div className="border rounded-lg overflow-hidden">
+                    <div className="border rounded-xl overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-red-50">
                           <tr>
@@ -1068,7 +1068,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   </div>
 
                   {/* Summary Section */}
-                  <div className="bg-slate-100 rounded-lg p-4">
+                  <div className="bg-slate-100 rounded-xl p-4">
                     <div className="grid grid-cols-3 gap-6 text-center">
                       <div>
                         <p className="text-xs text-slate-500 mb-1">Net Profit</p>
@@ -1090,7 +1090,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
               {/* Trial Balance Report Preview */}
               {reportData.trialBalance && (
                 <div className="space-y-6">
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="border rounded-xl overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-blue-50">
                         <tr>
@@ -1126,7 +1126,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                     </table>
                   </div>
 
-                  <div className="bg-slate-100 rounded-lg p-4">
+                  <div className="bg-slate-100 rounded-xl p-4">
                     <div className="grid grid-cols-3 gap-6 text-center">
                       <div>
                         <p className="text-xs text-slate-500 mb-1">Difference</p>
@@ -1160,7 +1160,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                     
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Current Assets</h4>
-                      <div className="border rounded-lg overflow-hidden">
+                      <div className="border rounded-xl overflow-hidden">
                         <table className="w-full text-sm">
                           <thead className="bg-blue-50">
                             <tr>
@@ -1194,7 +1194,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Fixed Assets</h4>
-                      <div className="border rounded-lg overflow-hidden">
+                      <div className="border rounded-xl overflow-hidden">
                         <table className="w-full text-sm">
                           <thead className="bg-blue-50">
                             <tr>
@@ -1226,7 +1226,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                       </div>
                     </div>
 
-                    <div className="bg-blue-100 rounded-lg p-4 text-center">
+                    <div className="bg-blue-100 rounded-xl p-4 text-center">
                       <p className="text-sm text-blue-600 mb-1">TOTAL ASSETS</p>
                       <p className="text-2xl font-bold text-blue-700">
                         {formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.totalAssets)}
@@ -1240,7 +1240,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                     
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Current Liabilities</h4>
-                      <div className="border rounded-lg overflow-hidden">
+                      <div className="border rounded-xl overflow-hidden">
                         <table className="w-full text-sm">
                           <thead className="bg-orange-50">
                             <tr>
@@ -1274,7 +1274,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Long-term Liabilities</h4>
-                      <div className="border rounded-lg overflow-hidden">
+                      <div className="border rounded-xl overflow-hidden">
                         <table className="w-full text-sm">
                           <thead className="bg-orange-50">
                             <tr>
@@ -1306,7 +1306,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                       </div>
                     </div>
 
-                    <div className="bg-orange-100 rounded-lg p-4 text-center">
+                    <div className="bg-orange-100 rounded-xl p-4 text-center">
                       <p className="text-sm text-orange-600 mb-1">TOTAL LIABILITIES</p>
                       <p className="text-2xl font-bold text-orange-700">
                         {formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.totalLiabilities)}
@@ -1317,7 +1317,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   {/* Equity Section */}
                   <div>
                     <h3 className="text-lg font-semibold text-purple-600 mb-3">EQUITY</h3>
-                    <div className="border rounded-lg overflow-hidden">
+                    <div className="border rounded-xl overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-purple-50">
                           <tr>
@@ -1351,14 +1351,14 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
                   {/* Summary Section */}
                   <div className="space-y-4">
-                    <div className="bg-purple-100 rounded-lg p-4 text-center">
+                    <div className="bg-purple-100 rounded-xl p-4 text-center">
                       <p className="text-sm text-purple-600 mb-1">TOTAL LIABILITIES & EQUITY</p>
                       <p className="text-2xl font-bold text-purple-700">
                         {formatCurrency(reportData.balanceSheet.balanceSheet.totals.totalLiabilitiesAndEquity)}
                       </p>
                     </div>
 
-                    <div className={`rounded-lg p-4 text-center ${
+                    <div className={`rounded-xl p-4 text-center ${
                       reportData.balanceSheet.accountingEquation.isBalanced 
                         ? 'bg-green-100' 
                         : 'bg-red-100'

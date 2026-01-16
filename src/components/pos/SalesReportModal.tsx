@@ -307,7 +307,7 @@ export default function SalesReportModal({
               </h4>
               <div className="space-y-3">
                 {itemStats.bestSelling.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                  <div key={i} className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100">
                     <div className="flex items-center gap-3">
                       <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
                         {i + 1}
@@ -334,7 +334,7 @@ export default function SalesReportModal({
               </h4>
               <div className="space-y-3">
                 {itemStats.worstSelling.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                  <div key={i} className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100">
                     <div className="flex items-center gap-3">
                       <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold">
                         {i + 1}
@@ -363,7 +363,7 @@ export default function SalesReportModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 rounded-lg flex flex-col p-0 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out"
+        className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 rounded-xl flex flex-col p-0 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out"
         style={{ 
           width: modalWidth || 'calc(100vw - 40px)', 
           height: '95vh',

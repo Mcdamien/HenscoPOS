@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 export async function GET() {
   try {
@@ -13,8 +14,12 @@ export async function GET() {
     
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    // Get all stores
-    const stores = await db.store.findMany()
+    // Get only allowed stores
+    const stores = await db.store.findMany({
+      where: {
+        name: { in: [...ALLOWED_SHOPS] }
+      }
+    })
 
     const salesData = await Promise.all(stores.map(async (store) => {
       const [daily, weekly, monthly, allTime] = await Promise.all([

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 import AddProductModal from '@/components/pos/AddProductModal'
 import RestockModal from '@/components/pos/RestockModal'
 import DashboardView from '@/components/pos/DashboardView'
@@ -27,17 +28,7 @@ export default function Home() {
   const [activeView, setActiveView] = useState<ViewType>('dashboard')
   const [currentStore, setCurrentStore] = useState<string>('Klagon Shop')
 
-  const stores = [
-    'Klagon Shop',
-    'Teshie Shop',
-    'Cape Coast Shop',
-    'T-Kokompe Shop',
-    'T-Central Shop',
-    'Kumasi Shop',
-    'Obuasi Shop',
-    'Vehicle Sales Agent',
-    'Online Shop'
-  ]
+  const stores = [...ALLOWED_SHOPS]
 
   const navItems = [
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: LayoutDashboard },
@@ -63,7 +54,7 @@ export default function Home() {
       {/* Sidebar */}
       <nav className="w-64 bg-white border-r border-slate-200 flex flex-col z-10">
         <div className="p-6 flex items-center gap-3 border-b border-slate-200">
-          <span className="text-xl font-bold text-emerald-600">HENSCO LTD</span>
+          <span className="text-xl font-bold text-emerald-600">Yames App</span>
         </div>
         
         <div className="flex-1 p-4 flex flex-col gap-2">
@@ -108,7 +99,7 @@ export default function Home() {
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden flex flex-col">
           {activeView === 'dashboard' && <DashboardView />}
           {activeView === 'warehouse' && (
             <WarehouseView 

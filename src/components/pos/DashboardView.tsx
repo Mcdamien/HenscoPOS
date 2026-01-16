@@ -93,24 +93,32 @@ export default function DashboardView() {
         
         if (statsRes.ok) {
           const statsData = await statsRes.json()
-          setStats(statsData)
+          if (statsData && !statsData.error) {
+            setStats(statsData)
+          }
         }
         
         if (txRes.ok) {
           const txData = await txRes.json()
-          setTransactions(txData)
-          // Group transactions by shop
-          setShopGroups(groupTransactionsByShop(txData))
+          if (Array.isArray(txData)) {
+            setTransactions(txData)
+            // Group transactions by shop
+            setShopGroups(groupTransactionsByShop(txData))
+          }
         }
 
         if (transferRes.ok) {
           const transferData = await transferRes.json()
-          setTransfers(transferData)
+          if (Array.isArray(transferData)) {
+            setTransfers(transferData)
+          }
         }
 
         if (inventoryRes.ok) {
           const inventoryData = await inventoryRes.json()
-          setInventoryAdditions(inventoryData)
+          if (Array.isArray(inventoryData)) {
+            setInventoryAdditions(inventoryData)
+          }
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error)
@@ -123,11 +131,12 @@ export default function DashboardView() {
   }, [])
 
   const formatCurrency = (amount: number) => {
+    const safeAmount = typeof amount === 'number' ? amount : 0
     return new Intl.NumberFormat('en-GH', {
       style: 'currency',
       currency: 'GHS',
       currencyDisplay: 'code'
-    }).format(amount)
+    }).format(safeAmount)
   }
 
   // Group transactions by store
@@ -168,10 +177,17 @@ export default function DashboardView() {
       )}
       onClick={onClick}
     >
-      <CardContent className="p-4 text-center">
-        <p className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-medium">{title}</p>
-        <div className="flex flex-col items-center gap-1">
-          <p className={cn("text-xl font-bold", color || "text-slate-900")}>{value}</p>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">{title}</p>
+          {Icon && (
+            <div className={cn("p-2 rounded-lg", color.replace('text-', 'bg-').replace('-600', '-50'))}>
+              <Icon className={cn("w-4 h-4", color)} />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col items-start gap-1">
+          <p className={cn("text-2xl font-bold", color || "text-slate-900")}>{value}</p>
           {trend && (
             <div className={cn("flex items-center gap-1 text-[10px]", color)}>
               {trend}
@@ -204,11 +220,11 @@ export default function DashboardView() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <StatCard
           title="Total Transactions"
-          value={formatCurrency(stats.transactions)}
+          value={stats.transactions.toString()}
           trend={
             <>
               <CheckCircle className="w-3 h-3" />
-              <span>Sales analytics</span>
+              <span>Sales count</span>
             </>
           }
           icon={CheckCircle}
@@ -323,7 +339,7 @@ export default function DashboardView() {
                   <TableRow key={index}>
                     <TableCell className="font-medium">{shop.store}</TableCell>
                     <TableCell>
-                      {formatDateDDMMYYYY(shop.firstDate)} - {formatDateDDMMYYYY(shop.lastDate)}
+                      {shop.firstDate ? formatDateDDMMYYYY(shop.firstDate) : 'N/A'} - {shop.lastDate ? formatDateDDMMYYYY(shop.lastDate) : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-slate-50">
@@ -489,7 +505,7 @@ export default function DashboardView() {
             <DialogHeader className="flex-shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-emerald-600" />
-                All Transactions - {selectedShopTransactions[0]?.store}
+                All Transactions {selectedShopTransactions.length > 0 ? `- ${selectedShopTransactions[0].store}` : ''}
               </DialogTitle>
             </DialogHeader>
             

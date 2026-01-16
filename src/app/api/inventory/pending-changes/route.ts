@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +10,10 @@ export async function GET(request: NextRequest) {
 
     // Build query filters
     const where: any = {
-      status
+      status,
+      store: {
+        name: { in: [...ALLOWED_SHOPS] }
+      }
     }
 
     // If storeId is provided, filter by store
@@ -17,31 +21,40 @@ export async function GET(request: NextRequest) {
       where.storeId = storeId
     }
 
-    const pendingChanges = await db.pendingInventoryChange.findMany({
-      where,
-      include: {
-        product: true,
-        store: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+    const [pendingChanges, pendingCount] = await Promise.all([
+      db.pendingInventoryChange.findMany({
+        where,
+        include: {
+          product: {
+            select: {
+              id: true,
+              itemId: true,
+              name: true
+            }
+          },
+          store: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      }),
+      db.pendingInventoryChange.count({
+        where: { status: 'pending' }
+      })
+    ])
 
     // Format response
     const formattedChanges = pendingChanges.map(change => ({
       id: change.id,
       productId: change.productId,
       storeId: change.storeId,
-      product: {
-        id: change.product.id,
-        itemId: change.product.itemId,
-        name: change.product.name
-      },
-      store: {
-        id: change.store.id,
-        name: change.store.name
-      },
+      product: change.product,
+      store: change.store,
       changeType: change.changeType,
       qty: change.qty,
       newCost: change.newCost,
@@ -53,11 +66,6 @@ export async function GET(request: NextRequest) {
       reviewedAt: change.reviewedAt,
       createdAt: change.createdAt
     }))
-
-    // Get count of pending changes
-    const pendingCount = await db.pendingInventoryChange.count({
-      where: { status: 'pending' }
-    })
 
     return NextResponse.json({
       changes: formattedChanges,

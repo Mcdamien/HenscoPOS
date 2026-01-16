@@ -112,7 +112,7 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-semibold">Restock Product</h2>
           <button
@@ -174,11 +174,11 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
               value={quantity}
               onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
               onKeyDown={handleQuantityKeyDown}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
 
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="mb-4 p-3 bg-gray-50 rounded-xl">
             <p className="text-sm text-gray-600">New Stock Level at {selectedStore}</p>
             <p className="text-2xl font-bold text-emerald-600">
               {loadingStock ? '...' : `${(storeStock ?? product.currentStock) + quantity} units`}
@@ -197,7 +197,7 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
           <button
             ref={cancelButtonRef}
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-100 transition-colors"
             onKeyDown={(e) => {
               if (e.key === 'Tab' && e.shiftKey) {
                 e.preventDefault()
@@ -212,7 +212,7 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
           <button
             ref={confirmButtonRef}
             onClick={handleConfirm}
-            className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors"
             onKeyDown={(e) => {
               if (e.key === 'Tab' && e.shiftKey) {
                 e.preventDefault()

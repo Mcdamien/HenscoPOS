@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
+
 //import prisma from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +12,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Store parameter is required' },
         { status: 400 }
+      )
+    }
+
+    if (!ALLOWED_SHOPS.includes(store as any)) {
+      return NextResponse.json(
+        { error: 'Unauthorized store' },
+        { status: 403 }
       )
     }
 
@@ -26,9 +35,16 @@ export async function GET(request: NextRequest) {
 
     // Get all products with their inventory for this store
     const products = await db.product.findMany({
-      include: {
+      select: {
+        id: true,
+        itemId: true,
+        name: true,
+        cost: true,
+        price: true,
+        warehouseStock: true,
         inventories: {
-          where: { storeId: storeRecord.id }
+          where: { storeId: storeRecord.id },
+          select: { stock: true }
         }
       },
       orderBy: { itemId: 'asc' }

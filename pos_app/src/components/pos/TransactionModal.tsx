@@ -385,7 +385,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className={`w-5 h-5 ${config.iconColor}`} />

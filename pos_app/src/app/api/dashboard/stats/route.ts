@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 export async function GET() {
   try {
@@ -9,73 +10,91 @@ export async function GET() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const startOfYear = new Date(now.getFullYear(), 0, 1)
 
+    const storeFilter = {
+      store: {
+        name: { in: [...ALLOWED_SHOPS] }
+      }
+    }
+
     const [daily, weekly, monthly, allTime, shopSales] = await Promise.all([
       db.transaction.aggregate({
-        where: { createdAt: { gte: startOfDay } },
+        where: { 
+          createdAt: { gte: startOfDay },
+          ...storeFilter
+        },
         _sum: { total: true },
         _count: { id: true }
       }),
       db.transaction.aggregate({
-        where: { createdAt: { gte: startOfWeek } },
+        where: { 
+          createdAt: { gte: startOfWeek },
+          ...storeFilter
+        },
         _sum: { total: true }
       }),
       db.transaction.aggregate({
-        where: { createdAt: { gte: startOfMonth } },
+        where: { 
+          createdAt: { gte: startOfMonth },
+          ...storeFilter
+        },
         _sum: { total: true }
       }),
       db.transaction.aggregate({
+        where: storeFilter,
         _sum: { total: true, subtotal: true },
         _count: { id: true }
       }),
       // Get shop-wise sales summary for current year
       db.transaction.groupBy({
         by: ['storeId'],
-        where: { createdAt: { gte: startOfYear } },
+        where: { 
+          createdAt: { gte: startOfYear },
+          ...storeFilter
+        },
         _sum: { total: true },
         _count: { id: true }
       })
     ])
 
-    // Calculate profit (subtotal - itemCosts)
-    const transactions = await db.transaction.findMany({
-      include: { items: true }
-    })
+    // Calculate profit (subtotal - itemCosts) using raw query for efficiency
+    const shopsPlaceholder = ALLOWED_SHOPS.map(s => `'${s.replace(/'/g, "''")}'`).join(',')
+    const profitResult = await db.$queryRawUnsafe<[{ netProfit: number }][]>(`
+      SELECT SUM((ti.itemPrice - ti.itemCost) * ti.qty) as netProfit 
+      FROM TransactionItem ti
+      JOIN "Transaction" t ON ti.transactionId = t.id
+      JOIN Store s ON t.storeId = s.id
+      WHERE s.name IN (${shopsPlaceholder})
+    `)
+    const totalProfit = (profitResult as any)[0]?.netProfit || 0
 
-    let totalProfit = 0
-    transactions.forEach(tx => {
-      tx.items.forEach(item => {
-        totalProfit += (item.itemPrice - item.itemCost) * item.qty
-      })
-    })
-
-    // Count low stock and out of stock items from warehouse inventory only
-    // Low stock: 1-19 items, Out of stock: 0 items
-    const allProducts = await db.product.findMany({
-      include: {
-        inventories: true
-      }
-    })
-
-    let lowStockCount = 0
-    let outOfStockCount = 0
-    
-    allProducts.forEach(product => {
-      // Check warehouse stock
-      if (product.warehouseStock === 0) {
-        outOfStockCount++
-      } else if (product.warehouseStock < 20) {
-        lowStockCount++
-      }
-
-      // Check shop inventories
-      product.inventories.forEach(inventory => {
-        if (inventory.stock === 0) {
-          outOfStockCount++
-        } else if (inventory.stock < 20) {
-          lowStockCount++
+    // Count low stock and out of stock items efficiently
+    const [warehouseOutCount, warehouseLowCount, shopInventoryStats] = await Promise.all([
+      db.product.count({ where: { warehouseStock: 0 } }),
+      db.product.count({ where: { warehouseStock: { gt: 0, lt: 20 } } }),
+      db.inventory.aggregate({
+        _count: { id: true },
+        where: { 
+          stock: { gt: 0 },
+          store: { name: { in: [...ALLOWED_SHOPS] } }
         }
       })
+    ])
+
+    const shopLowStockCount = await db.inventory.count({
+      where: { 
+        stock: { gt: 0, lt: 20 },
+        store: { name: { in: [...ALLOWED_SHOPS] } }
+      }
     })
+
+    const productCount = await db.product.count()
+    const filteredStoreCount = await db.store.count({ where: { name: { in: [...ALLOWED_SHOPS] } } })
+    const totalShopPositions = productCount * filteredStoreCount
+    const shopInStockCount = shopInventoryStats._count.id || 0
+    const shopOutOfStockCount = totalShopPositions - shopInStockCount
+
+    const totalOutOfStock = warehouseOutCount + shopOutOfStockCount
+    const totalLowStock = warehouseLowCount + shopLowStockCount
 
     // Format shop sales data
     const shopSummary = shopSales.map(shop => ({
@@ -92,8 +111,8 @@ export async function GET() {
       totalSales: allTime._sum.total || 0,
       transactions: allTime._count.id || 0,
       netProfit: totalProfit,
-      lowStockCount: lowStockCount,
-      outOfStockCount: outOfStockCount,
+      lowStockCount: totalLowStock,
+      outOfStockCount: totalOutOfStock,
       shopSummary: shopSummary
     })
   } catch (error) {

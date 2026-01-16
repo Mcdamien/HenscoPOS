@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,13 +18,14 @@ export async function POST(request: NextRequest) {
     const pendingChange = await db.pendingInventoryChange.findUnique({
       where: { id: pendingChangeId },
       include: {
-        product: true
+        product: true,
+        store: true
       }
     })
 
-    if (!pendingChange) {
+    if (!pendingChange || !ALLOWED_SHOPS.includes(pendingChange.store.name as any)) {
       return NextResponse.json(
-        { error: 'Pending change not found' },
+        { error: 'Pending change not found or unauthorized store' },
         { status: 404 }
       )
     }

@@ -254,7 +254,7 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent showCloseButton={false} className="max-w-2xl p-0 overflow-hidden">
+      <DialogContent showCloseButton={false} className="max-w-4xl p-0 overflow-hidden">
         <DialogHeader className="p-6 border-b pb-4">
           <DialogTitle className="flex items-center gap-2">
             <Truck className="w-5 h-5 text-blue-600" />
@@ -307,7 +307,7 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
                 </div>
                 
                 {isSearchOpen && searchTerm && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                     {filteredProducts.length === 0 ? (
                       <div className="p-3 text-sm text-slate-500 text-center">No matches</div>
                     ) : (
@@ -369,7 +369,7 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
           </div>
 
           {transferItems.length > 0 && (
-            <div className="border rounded-md overflow-hidden">
+            <div className="border rounded-xl overflow-hidden">
               <Table>
                 <TableHeader className="bg-slate-50">
                   <TableRow>

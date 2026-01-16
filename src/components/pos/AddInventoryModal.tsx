@@ -321,7 +321,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
             </div>
           </div>
 
-          <div className="border rounded-lg p-4 bg-slate-50/50 space-y-4">
+          <div className="border rounded-xl p-4 bg-slate-50/50 space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Plus className="w-4 h-4 text-emerald-600" />
               Add Item
@@ -454,7 +454,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
           {items.length > 0 && (
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Items in Batch ({items.length})</Label>
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-xl overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">

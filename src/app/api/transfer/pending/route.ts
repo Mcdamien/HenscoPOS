@@ -14,26 +14,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Get pending transfers for this store
-    const pendingTransfers = await db.stockTransfer.findMany({
-      where: {
-        toStore: store,
-        status: 'pending'
-      },
-      include: {
-        items: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
-
-    // Get count of pending transfers
-    const pendingCount = await db.stockTransfer.count({
-      where: {
-        toStore: store,
-        status: 'pending'
-      }
-    })
+    const [pendingTransfers, pendingCount] = await Promise.all([
+      db.stockTransfer.findMany({
+        where: {
+          toStore: store,
+          status: 'pending'
+        },
+        include: {
+          items: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      }),
+      db.stockTransfer.count({
+        where: {
+          toStore: store,
+          status: 'pending'
+        }
+      })
+    ])
 
     return NextResponse.json({
       transfers: pendingTransfers,

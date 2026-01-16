@@ -385,7 +385,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className={`w-5 h-5 ${config.iconColor}`} />
@@ -548,7 +548,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
           </div>
 
           {/* Total Display */}
-          <div className="bg-slate-50 p-4 rounded-lg">
+          <div className="bg-slate-50 p-4 rounded-xl">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-slate-700">Total:</span>
               <span className={`text-lg font-bold ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>

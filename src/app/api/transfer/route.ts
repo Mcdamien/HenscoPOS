@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'No items provided for transfer' },
         { status: 400 }
+      )
+    }
+
+    if (!ALLOWED_SHOPS.includes(targetStore as any)) {
+      return NextResponse.json(
+        { error: 'Unauthorized target store' },
+        { status: 403 }
       )
     }
 
@@ -87,6 +95,9 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const transfers = await db.stockTransfer.findMany({
+      where: {
+        toStore: { in: [...ALLOWED_SHOPS] }
+      },
       include: {
         items: true
       },

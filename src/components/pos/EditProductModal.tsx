@@ -148,7 +148,7 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Product Info - Read Only */}
-          <div className="bg-slate-50 p-3 rounded-lg">
+          <div className="bg-slate-50 p-3 rounded-xl">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <span className="text-slate-500">Item ID:</span>

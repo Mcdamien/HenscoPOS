@@ -202,7 +202,7 @@ export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: Pe
             {changes.map((change) => (
               <div 
                 key={change.id} 
-                className="border rounded-lg p-4 bg-white hover:bg-slate-50 transition-colors"
+                className="border rounded-xl p-4 bg-white hover:bg-slate-50 transition-colors"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 import AddProductModal from '@/components/pos/AddProductModal'
 import RestockModal from '@/components/pos/RestockModal'
 import DashboardView from '@/components/pos/DashboardView'
@@ -27,17 +28,7 @@ export default function Home() {
   const [activeView, setActiveView] = useState<ViewType>('dashboard')
   const [currentStore, setCurrentStore] = useState<string>('Klagon Shop')
 
-  const stores = [
-    'Klagon Shop',
-    'Teshie Shop',
-    'Cape Coast Shop',
-    'T-Kokompe Shop',
-    'T-Central Shop',
-    'Kumasi Shop',
-    'Obuasi Shop',
-    'Vehicle Sales Agent',
-    'Online Shop'
-  ]
+  const stores = [...ALLOWED_SHOPS]
 
   const navItems = [
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: LayoutDashboard },
@@ -62,10 +53,6 @@ export default function Home() {
     <div className="min-h-screen flex bg-slate-50">
       {/* Sidebar */}
       <nav className="w-64 bg-white border-r border-slate-200 flex flex-col z-10">
-        <div className="p-6 flex items-center gap-3 border-b border-slate-200">
-          <span className="text-xl font-bold text-emerald-600">HENSCO LTD</span>
-        </div>
-        
         <div className="flex-1 p-4 flex flex-col gap-2">
           {navItems.map((item) => {
             const Icon = item.icon
@@ -73,7 +60,7 @@ export default function Home() {
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeView === item.id
                     ? 'bg-emerald-50 text-emerald-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-emerald-600'
@@ -87,7 +74,7 @@ export default function Home() {
         </div>
 
         <div className="p-4 border-t border-slate-200">
-          <button className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-all w-full">
+          <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all w-full">
             <LogOut className="w-5 h-5" />
             Logout
           </button>
@@ -97,8 +84,8 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
-          <h1 className="text-xl font-semibold text-slate-900">{getPageTitle()}</h1>
+        <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-8">
+          <h1 className="text-xl font-semibold text-slate-800">{getPageTitle()}</h1>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-600">Admin User</span>
             <Avatar>
@@ -108,7 +95,7 @@ export default function Home() {
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden flex flex-col">
           {activeView === 'dashboard' && <DashboardView />}
           {activeView === 'warehouse' && (
             <WarehouseView 

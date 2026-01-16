@@ -59,7 +59,7 @@ export default function ReportModal({ isOpen, onClose, transactions }: ReportMod
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 rounded-lg flex flex-col p-0 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out"
+        className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 rounded-xl flex flex-col p-0 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out"
         style={{ 
           width: modalWidth || 'calc(100vw - 40px)', 
           height: '95vh',
@@ -98,7 +98,7 @@ export default function ReportModal({ isOpen, onClose, transactions }: ReportMod
             </div>
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === 'analytics' 
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100' 
                   : 'text-slate-600 hover:bg-white hover:text-emerald-600'
@@ -109,7 +109,7 @@ export default function ReportModal({ isOpen, onClose, transactions }: ReportMod
             </button>
             <button
               onClick={() => setActiveTab('sales-report')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === 'sales-report' 
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100' 
                   : 'text-slate-600 hover:bg-white hover:text-emerald-600'
@@ -120,7 +120,7 @@ export default function ReportModal({ isOpen, onClose, transactions }: ReportMod
             </button>
             <div className="mt-auto pt-6 border-t border-slate-200">
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider px-3 mb-3">Module Roadmap</p>
-              <button disabled className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-slate-400 cursor-not-allowed w-full text-left opacity-60">
+              <button disabled className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 cursor-not-allowed w-full text-left opacity-60">
                 <PieChart className="w-5 h-5" />
                 Inventory Value
               </button>

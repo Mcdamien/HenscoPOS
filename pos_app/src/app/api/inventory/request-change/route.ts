@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,15 +35,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if store exists
+    // Check if store exists and is allowed
     const store = await db.store.findUnique({
       where: { id: storeId }
     })
 
-    if (!store) {
+    if (!store || !ALLOWED_SHOPS.includes(store.name as any)) {
       return NextResponse.json(
-        { error: 'Store not found' },
-        { status: 404 }
+        { error: 'Unauthorized or invalid store' },
+        { status: 403 }
       )
     }
 

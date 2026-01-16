@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 export async function GET(request: NextRequest) {
   try {
     const transactions = await db.transaction.findMany({
+      where: {
+        store: {
+          name: { in: [...ALLOWED_SHOPS] }
+        }
+      },
       include: {
         store: true,
         items: true,

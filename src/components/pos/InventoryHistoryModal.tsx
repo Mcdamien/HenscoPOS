@@ -114,7 +114,7 @@ export default function InventoryHistoryModal({ isOpen, onClose, initialExpanded
           ) : (
             <div className="space-y-6">
               {additions.map((addition) => (
-                <div key={addition.id} className="border rounded-lg overflow-hidden bg-slate-50/50">
+                <div key={addition.id} className="border rounded-xl overflow-hidden bg-slate-50/50">
                   <div className="bg-slate-100 px-4 py-3 flex items-center justify-between border-b">
                     <div className="flex items-center gap-6">
                       <div className="flex items-center gap-2">

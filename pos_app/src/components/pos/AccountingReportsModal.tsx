@@ -766,7 +766,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-slate-600" />
@@ -962,7 +962,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
     {/* Preview Modal */}
     <Dialog open={showPreview} onOpenChange={setShowPreview}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Eye className="w-5 h-5 text-slate-600" />

@@ -146,7 +146,7 @@ export default function TransferConfirmationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Truck className="w-5 h-5 text-amber-500" />
@@ -171,7 +171,7 @@ export default function TransferConfirmationModal({
               {localTransfers.map((transfer) => (
                 <div 
                   key={transfer.id} 
-                  className="border rounded-lg p-4 bg-white hover:bg-slate-50 transition-colors"
+                  className="border rounded-xl p-4 bg-white hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -196,7 +196,7 @@ export default function TransferConfirmationModal({
                   </div>
 
                   {/* Items Table */}
-                  <div className="border rounded-md overflow-hidden mb-3">
+                  <div className="border rounded-xl overflow-hidden mb-3">
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>

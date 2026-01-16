@@ -144,7 +144,7 @@ export default function EditStoreProductModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Product Info - Read Only */}
-          <div className="bg-slate-50 p-3 rounded-lg">
+          <div className="bg-slate-50 p-3 rounded-xl">
             <div className="flex items-center gap-2 mb-2">
               <Package className="w-4 h-4 text-slate-500" />
               <span className="font-medium">{product.name}</span>
@@ -162,7 +162,7 @@ export default function EditStoreProductModal({
           </div>
 
           {/* Store Info */}
-          <div className="bg-blue-50 p-3 rounded-lg flex items-center justify-between">
+          <div className="bg-blue-50 p-3 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4 text-blue-500" />
               <span className="text-sm text-blue-700">{storeInventory.storeName}</span>
@@ -261,7 +261,7 @@ export default function EditStoreProductModal({
           </div>
 
           {/* Notice */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
             <p className="text-xs text-amber-700">
               <strong>Note:</strong> This change requires warehouse approval before it will be applied to your store inventory.
             </p>

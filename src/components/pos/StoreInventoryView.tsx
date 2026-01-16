@@ -77,38 +77,64 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
   const [loading, setLoading] = useState(true)
 
   const fetchInventory = async () => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
     try {
-      const response = await fetch(`/api/inventory?store=${encodeURIComponent(currentStore)}`)
+      const response = await fetch(`/api/inventory?store=${encodeURIComponent(currentStore)}`, {
+        signal: controller.signal
+      })
       if (response.ok) {
         const data = await response.json()
         setProducts(data)
       }
-    } catch (error) {
-      console.error('Failed to fetch inventory:', error)
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error('Fetch inventory timed out')
+      } else {
+        console.error('Failed to fetch inventory:', error)
+      }
     } finally {
+      clearTimeout(timeoutId)
       setLoading(false)
     }
   }
 
   const fetchPendingTransfers = async () => {
     if (!currentStore) return
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
     try {
-      const response = await fetch(`/api/transfer/pending?store=${encodeURIComponent(currentStore)}`)
+      const response = await fetch(`/api/transfer/pending?store=${encodeURIComponent(currentStore)}`, {
+        signal: controller.signal
+      })
       if (response.ok) {
         const data = await response.json()
         setPendingTransfers(data.transfers || [])
         setPendingTransfersCount(data.count || 0)
       }
-    } catch (error) {
-      console.error('Failed to fetch pending transfers:', error)
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error('Fetch pending transfers timed out')
+      } else {
+        console.error('Failed to fetch pending transfers:', error)
+      }
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 
   const fetchApprovedReturns = async () => {
     if (!currentStore) return
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
+    
     try {
       // Fetch approved returns for this store
-      const response = await fetch('/api/inventory/pending-changes?status=approved')
+      const response = await fetch('/api/inventory/pending-changes?status=approved', {
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
+      
       if (response.ok) {
         const data = await response.json()
         // Filter returns for this store
@@ -120,8 +146,13 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
         )
         setApprovedReturns(storeReturns)
       }
-    } catch (error) {
-      console.error('Failed to fetch approved returns:', error)
+    } catch (error: any) {
+      clearTimeout(timeoutId)
+      if (error.name === 'AbortError') {
+        console.error('Fetch approved returns timed out')
+      } else {
+        console.error('Failed to fetch approved returns:', error)
+      }
     }
   }
 
@@ -169,18 +200,23 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
 
   const confirmReturn = async (productId: string) => {
     try {
-      const response = await fetch(`/api/returns/confirm`, {
+      const response = await fetch(`/api/inventory/confirm-return`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId })
+        body: JSON.stringify({ 
+          productId,
+          storeName: currentStore
+        })
       });
 
       if (response.ok) {
         // Remove the confirmed return from approvedReturns
         setApprovedReturns(prev => prev.filter(returnItem => returnItem.productId !== productId));
+        toast.success('Return alert cleared')
       }
     } catch (error) {
       console.error('Failed to confirm return:', error);
+      toast.error('Failed to clear return alert')
     }
   };
 

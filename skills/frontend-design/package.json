@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/package",
   "name": "@z-ai/frontend-design-skill",
   "version": "2.0.0",
   "description": "Comprehensive frontend design skill for systematic and creative web development",
