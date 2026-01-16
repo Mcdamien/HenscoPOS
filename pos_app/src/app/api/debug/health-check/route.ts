@@ -17,7 +17,7 @@ export async function GET() {
     console.log('Health Check: Database connection successful.');
 
     // 3. Try a simple query. Replace 'Product' with one of your actual Prisma models!
-    const count = await prisma.product.count(); // <--- CHANGE 'Product' TO YOUR MODEL
+    const count = await prisma.products.count(); // <--- CHANGE 'Product' TO YOUR MODEL
     console.log(`Health Check: Found ${count} items in the Product table.`);
 
     return NextResponse.json({ 
