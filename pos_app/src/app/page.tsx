@@ -53,9 +53,7 @@ export default function Home() {
     <div className="h-screen max-h-screen flex bg-slate-50 overflow-hidden fixed inset-0">
       {/* Sidebar */}
       <nav className="w-64 bg-white border-r border-slate-200 flex flex-col z-10 shrink-0">
-        <div className="p-6 flex items-center gap-3 border-b border-slate-200 shrink-0">
-          <span className="text-xl font-bold text-emerald-600">Yames App</span>
-        </div>
+        
         
         <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto">
           {navItems.map((item) => {
