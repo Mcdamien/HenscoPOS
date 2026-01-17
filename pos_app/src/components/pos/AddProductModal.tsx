@@ -160,7 +160,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
   }
 
   // Keyboard navigation hook
-  const { focusField, handleKeyDown } = useKeyboardNavigation({
+  const { registerField, handleKeyDown, focusField } = useKeyboardNavigation({
     fieldCount: FIELD_COUNT,
     onEnterSubmit: handleSubmit
   })
@@ -191,159 +191,171 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
   // Focus first field when modal opens
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => searchTriggerRef.current?.focus(), 100)
+      setTimeout(() => focusField(0), 100)
     }
-  }, [isOpen])
+  }, [isOpen, focusField])
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
+            <Package className="w-5 h-5 text-blue-600" />
             Add New Product
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="name">Product Name</Label>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  ref={searchTriggerRef}
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-full justify-between font-normal"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Tab' && !e.shiftKey) {
-                      e.preventDefault()
-                      focusField(1) // Move to cost input
-                    } else if (e.key === 'Enter') {
-                      e.preventDefault()
-                      setOpen(true)
-                    }
-                  }}
-                >
-                  {formData.name || "Search or enter product name..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
+        <div className="flex-1 overflow-y-auto p-6">
+          <form id="add-product-form" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-semibold text-slate-700">Product Name</Label>
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    ref={registerField(0)}
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between font-normal h-11 text-base border-slate-300 hover:border-blue-400 transition-colors"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab' && !e.shiftKey) {
+                        e.preventDefault()
+                        focusField(1) // Move to cost input
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault()
+                        setOpen(true)
+                      }
+                    }}
+                  >
+                    {formData.name || "Search or enter product name..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
                     <CommandInput 
                       placeholder="Type product name..." 
                       value={searchQuery}
                       onValueChange={(val) => setSearchQuery(val)}
                     />
-                  <CommandList>
-                    <CommandEmpty>No existing product found. You can continue typing to add this as a new product.</CommandEmpty>
-                    <CommandGroup heading="Select Existing Product">
-                      {filteredProducts.map((product) => (
-                        <CommandItem
-                          key={product.id}
-                          value={product.name}
-                          onSelect={() => handleSelectProduct(product)}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              formData.name === product.name ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {product.name}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
+                    <CommandList>
+                      <CommandEmpty>No existing product found. You can continue typing to add this as a new product.</CommandEmpty>
+                      <CommandGroup heading="Select Existing Product">
+                        {filteredProducts.map((product) => (
+                          <CommandItem
+                            key={product.id}
+                            value={product.name}
+                            onSelect={() => handleSelectProduct(product)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.name === product.name ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {product.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="cost">Cost (GHS)</Label>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="cost" className="text-sm font-semibold text-slate-700">Cost (GHS)</Label>
+                <Input
+                  ref={registerField(1)}
+                  id="cost"
+                  type="number"
+                  step="0.01"
+                  className="h-11 text-base border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                  value={formData.cost}
+                  onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                  onKeyDown={handleCostKeyDown}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="price" className="text-sm font-semibold text-slate-700">Price (GHS)</Label>
+                <Input
+                  ref={registerField(2)}
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  className="h-11 text-base border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  onKeyDown={handlePriceKeyDown}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="stock" className="text-sm font-semibold text-slate-700">
+                {existingProduct ? 'Add Quantity' : 'Initial Warehouse Stock'}
+              </Label>
               <Input
-                ref={costInputRef}
-                id="cost"
+                ref={registerField(3)}
+                id="stock"
                 type="number"
-                step="0.01"
-                value={formData.cost}
-                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                onKeyDown={handleCostKeyDown}
+                min={existingProduct ? "1" : "0"}
+                className="h-11 text-base border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                value={formData.stock}
+                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                onKeyDown={handleStockKeyDown}
+                placeholder="0"
                 required
               />
+              {existingProduct && (
+                <p className="text-xs font-medium text-slate-500 mt-1 flex items-center gap-1">
+                  <Package className="w-3 h-3" />
+                  Current Balance: {existingProduct.warehouseStock}
+                </p>
+              )}
             </div>
-            <div>
-              <Label htmlFor="price">Price (GHS)</Label>
-              <Input
-                ref={priceInputRef}
-                id="price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                onKeyDown={handlePriceKeyDown}
-                required
-              />
-            </div>
-          </div>
+          </form>
+        </div>
 
-          <div>
-            <Label htmlFor="stock">
-              {existingProduct ? 'Add Quantity' : 'Initial Warehouse Stock'}
-            </Label>
-            <Input
-              ref={stockInputRef}
-              id="stock"
-              type="number"
-              min={existingProduct ? "1" : "0"}
-              value={formData.stock}
-              onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-              onKeyDown={handleStockKeyDown}
-              required
-            />
-            {existingProduct && (
-              <p className="text-xs text-slate-500 mt-1">
-                Current Balance: {existingProduct.warehouseStock}
-              </p>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button 
-              ref={cancelButtonRef}
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-              onKeyDown={(e) => {
-                if (e.key === 'Tab' && e.shiftKey) {
-                  e.preventDefault()
-                  focusField(3) // Move to stock input
-                } else if (e.key === 'Enter') {
-                  handleClose()
-                }
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              ref={saveButtonRef}
-              type="submit" 
-              disabled={submitting}
-              onKeyDown={(e) => {
-                if (e.key === 'Tab' && e.shiftKey) {
-                  e.preventDefault()
-                  focusField(4) // Move to cancel button
-                }
-              }}
-            >
-              {submitting ? 'Adding...' : 'Save Product'}
-            </Button>
-          </div>
-        </form>
+        <div className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+          <Button 
+            ref={registerField(4)}
+            type="button" 
+            variant="outline" 
+            className="h-11 px-6 border-slate-300 text-slate-700 hover:bg-slate-100"
+            onClick={handleClose}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab' && e.shiftKey) {
+                e.preventDefault()
+                focusField(3) // Move to stock input
+              } else if (e.key === 'Enter') {
+                handleClose()
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            ref={registerField(5)}
+            type="submit" 
+            form="add-product-form"
+            className="h-11 px-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+            disabled={submitting}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab' && e.shiftKey) {
+                e.preventDefault()
+                focusField(4) // Move to cancel button
+              }
+            }}
+          >
+            {submitting ? 'Adding...' : 'Save Product'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )

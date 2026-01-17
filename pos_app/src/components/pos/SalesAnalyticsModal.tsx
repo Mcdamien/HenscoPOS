@@ -139,7 +139,7 @@ export default function SalesAnalyticsModal({ isOpen, onClose, embedded = false 
       <div>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
               <TrendingUp className="w-4 h-4 text-emerald-600" />
             </div>
             Global Performance Summary
@@ -179,7 +179,7 @@ export default function SalesAnalyticsModal({ isOpen, onClose, embedded = false 
       <div>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
               <Store className="w-4 h-4 text-blue-600" />
             </div>
             Store-by-Store Analysis
@@ -244,7 +244,7 @@ export default function SalesAnalyticsModal({ isOpen, onClose, embedded = false 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 rounded-lg flex flex-col p-0 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out"
+        className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 rounded-xl flex flex-col p-0 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out"
         style={{ 
           width: modalWidth || 'calc(100vw - 40px)', 
           height: '95vh',

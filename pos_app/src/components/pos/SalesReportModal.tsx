@@ -52,16 +52,6 @@ export default function SalesReportModal({
   const [storeFilter, setStoreFilter] = useState<string>('all')
   const [itemSearch, setItemSearch] = useState<string>('')
   const [dateRange, setDateRange] = useState<string>(initialDateRange)
-  const [modalWidth, setModalWidth] = useState(0)
-  const [isResizing, setIsResizing] = useState(false)
-  const resizeRef = useRef<HTMLDivElement>(null)
-
-  // Set initial width to viewport width on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setModalWidth(window.innerWidth - 40)
-    }
-  }, [])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-GH', {
@@ -127,30 +117,6 @@ export default function SalesReportModal({
     const avg = count > 0 ? total / count : 0
     return { total, count, avg }
   }, [filteredTransactions])
-
-  const startResizing = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsResizing(true)
-    
-    const startX = e.clientX
-    const startWidth = modalWidth
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const diff = moveEvent.clientX - startX
-      const newWidth = Math.max(800, Math.min(startWidth + diff, window.innerWidth - 20))
-      setModalWidth(newWidth)
-    }
-
-    const handleMouseUp = () => {
-      setIsResizing(false)
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-  }, [modalWidth])
 
   const ReportCard = ({ label, value, icon: Icon, color = 'emerald' }: any) => (
     <div className={`bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow`}>
@@ -350,25 +316,8 @@ export default function SalesReportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent 
-        className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 rounded-lg flex flex-col p-0 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out"
-        style={{ 
-          width: modalWidth || 'calc(100vw - 40px)', 
-          height: '95vh',
-          maxWidth: 'none'
-        }}
-      >
-        {/* Resize Handle */}
-        <div 
-          ref={resizeRef}
-          onMouseDown={startResizing}
-          className={`absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-emerald-500/20 transition-colors z-50 flex items-center justify-center ${isResizing ? 'bg-emerald-500/30' : ''}`}
-          style={{ right: '-12px' }}
-        >
-          <div className="w-1.5 h-12 bg-slate-300 rounded-full hover:bg-emerald-500 transition-colors" />
-        </div>
-
-        <DialogHeader className="p-6 border-b border-slate-100 shrink-0">
+      <DialogContent>
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-emerald-600" />
             Detailed Sales Report

@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       }
 
       let totalCost = 0
-      const processedItems = []
+      const processedItems: any[] = []
 
       for (const item of items) {
         const { name, cost, price, stock } = item

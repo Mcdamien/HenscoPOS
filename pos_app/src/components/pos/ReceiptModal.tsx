@@ -78,7 +78,7 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
         
         {/* Scrollable receipt content */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="font-mono receipt-content bg-white p-4 border rounded-lg shadow-sm">
+          <div className="font-mono receipt-content bg-white p-4 border rounded-xl shadow-sm">
             {/* Header - Uses Arnel Rounded equivalent (Quicksand) */}
             <div className="text-center mb-4 border-b-2 border-dashed border-slate-200 pb-4 font-[var(--font-quicksand)]">
               <h2 className="text-xl font-bold text-emerald-600 mb-1 tracking-tight">Yames App</h2>

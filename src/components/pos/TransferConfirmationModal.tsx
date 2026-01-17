@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -146,8 +147,8 @@ export default function TransferConfirmationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent>
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Truck className="w-5 h-5 text-amber-500" />
             Pending Stock Transfers
@@ -157,7 +158,7 @@ export default function TransferConfirmationModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto p-6">
           {localTransfers.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -171,7 +172,7 @@ export default function TransferConfirmationModal({
               {localTransfers.map((transfer) => (
                 <div 
                   key={transfer.id} 
-                  className="border rounded-xl p-4 bg-white hover:bg-slate-50 transition-colors"
+                  className="border rounded-lg p-4 bg-white hover:bg-slate-50 transition-colors shadow-sm"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -196,7 +197,7 @@ export default function TransferConfirmationModal({
                   </div>
 
                   {/* Items Table */}
-                  <div className="border rounded-xl overflow-hidden mb-3">
+                  <div className="border rounded-md overflow-hidden mb-3">
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>
@@ -259,15 +260,17 @@ export default function TransferConfirmationModal({
           )}
         </div>
 
-        <div className="p-4 border-t bg-slate-50 flex-shrink-0 flex justify-between items-center">
-          <div className="text-sm text-slate-600">
-            {localTransfers.length} transfer{localTransfers.length !== 1 ? 's' : ''} awaiting confirmation
+        <DialogFooter>
+          <div className="flex justify-between items-center w-full">
+            <div className="text-sm text-slate-600">
+              {localTransfers.length} transfer{localTransfers.length !== 1 ? 's' : ''} awaiting confirmation
+            </div>
+            <Button variant="outline" size="sm" onClick={onClose}>
+              <X className="w-4 h-4 mr-2" />
+              Close
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            <X className="w-4 h-4 mr-2" />
-            Close
-          </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

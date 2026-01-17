@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -765,8 +766,8 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-slate-600" />
@@ -774,65 +775,174 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Report Type Selection */}
-          <div className="space-y-3">
-            <Label>Select Report Type</Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full justify-between h-12">
-                  {selectedConfig ? (
-                    <div className="flex items-center gap-2">
-                      <selectedConfig.icon className={`w-5 h-5 ${selectedConfig.color}`} />
-                      <span>{selectedConfig.title}</span>
-                    </div>
-                  ) : (
-                    <span className="text-slate-500">Choose a report type...</span>
-                  )}
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-full">
-                {Object.entries(REPORT_CONFIG).map(([key, config]) => (
-                  <DropdownMenuItem
-                    key={key}
-                    onClick={() => setSelectedReport(key as ReportType)}
-                    className="flex items-center gap-2"
-                  >
-                    <config.icon className={`w-5 h-5 ${config.color}`} />
-                    <div>
-                      <p className="font-medium">{config.title}</p>
-                      <p className="text-xs text-slate-500">{config.description}</p>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* Date Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
+            {/* Report Type Selection */}
+            <div className="space-y-3">
+              <Label>Select Report Type</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between h-12">
+                    {selectedConfig ? (
+                      <div className="flex items-center gap-2">
+                        <selectedConfig.icon className={`w-5 h-5 ${selectedConfig.color}`} />
+                        <span>{selectedConfig.title}</span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-500">Choose a report type...</span>
+                    )}
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-full">
+                  {Object.entries(REPORT_CONFIG).map(([key, config]) => (
+                    <DropdownMenuItem
+                      key={key}
+                      onClick={() => setSelectedReport(key as ReportType)}
+                      className="flex items-center gap-2"
+                    >
+                      <config.icon className={`w-5 h-5 ${config.color}`} />
+                      <div>
+                        <p className="font-medium">{config.title}</p>
+                        <p className="text-xs text-slate-500">{config.description}</p>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <div>
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-          </div>
 
-          {/* Generate Button */}
+            {/* Date Range */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate">End Date</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Preview Section */}
+            {hasGenerated && reportData && selectedConfig && (
+              <div className="space-y-4 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium flex items-center gap-2">
+                    {selectedConfig.title}
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  </h4>
+                  <div className="flex gap-2">
+                    <Button onClick={handlePreview} variant="outline" size="sm">
+                      <Eye className="w-4 h-4 mr-2" />
+                      Preview
+                    </Button>
+                    <Button onClick={handleDownloadPDF} size="sm">
+                      <Download className="w-4 h-4 mr-2" />
+                      Download PDF
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Preview based on report type */}
+                {reportData.profitLoss && (
+                  <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-slate-500">Revenue</p>
+                        <p className="text-lg font-bold text-green-600">
+                          {formatCurrency(reportData.profitLoss.summary.totalRevenue)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Expenses</p>
+                        <p className="text-lg font-bold text-red-600">
+                          {formatCurrency(reportData.profitLoss.summary.totalExpenses)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Net Profit</p>
+                        <p className="text-lg font-bold text-emerald-600">
+                          {formatCurrency(reportData.profitLoss.summary.netProfit)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {reportData.trialBalance && (
+                  <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-slate-500">Total Debits</p>
+                        <p className="text-lg font-bold text-blue-600">
+                          {formatCurrency(reportData.trialBalance.summary.totalDebits)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Total Credits</p>
+                        <p className="text-lg font-bold text-orange-600">
+                          {formatCurrency(reportData.trialBalance.summary.totalCredits)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Status</p>
+                        <p className={`text-lg font-bold ${reportData.trialBalance.summary.isBalanced ? 'text-green-600' : 'text-red-600'}`}>
+                          {reportData.trialBalance.summary.isBalanced ? '✓ Balanced' : '✗ Unbalanced'}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 text-center">
+                      {reportData.trialBalance.trialBalance.length} accounts in trial balance
+                    </p>
+                  </div>
+                )}
+
+                {reportData.balanceSheet && (
+                  <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-slate-500">Total Assets</p>
+                        <p className="text-lg font-bold text-blue-600">
+                          {formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.totalAssets)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Total Liabilities</p>
+                        <p className="text-lg font-bold text-orange-600">
+                          {formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.totalLiabilities)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Total Equity</p>
+                        <p className="text-lg font-bold text-purple-600">
+                          {formatCurrency(reportData.balanceSheet.balanceSheet.totals.totalEquity)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className={`text-xs text-center ${reportData.balanceSheet.accountingEquation.isBalanced ? 'text-green-600' : 'text-red-600'}`}>
+                      {reportData.balanceSheet.accountingEquation.isBalanced 
+                        ? '✓ Balance Sheet is Balanced (Assets = Liabilities + Equity)' 
+                        : '✗ Balance Sheet is NOT Balanced'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
           <Button
             onClick={handleGenerateReport}
             disabled={!selectedReport || loading}
@@ -850,120 +960,14 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
               </>
             )}
           </Button>
-
-          {/* Preview Section */}
-          {hasGenerated && reportData && selectedConfig && (
-            <div className="space-y-4 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium flex items-center gap-2">
-                  {selectedConfig.title}
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                </h4>
-                <div className="flex gap-2">
-                  <Button onClick={handlePreview} variant="outline" size="sm">
-                    <Eye className="w-4 h-4 mr-2" />
-                    Preview
-                  </Button>
-                  <Button onClick={handleDownloadPDF} size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </Button>
-                </div>
-              </div>
-
-              {/* Preview based on report type */}
-              {reportData.profitLoss && (
-                <div className="bg-slate-50 p-4 rounded-xl space-y-3">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-xs text-slate-500">Revenue</p>
-                      <p className="text-lg font-bold text-green-600">
-                        {formatCurrency(reportData.profitLoss.summary.totalRevenue)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Expenses</p>
-                      <p className="text-lg font-bold text-red-600">
-                        {formatCurrency(reportData.profitLoss.summary.totalExpenses)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Net Profit</p>
-                      <p className="text-lg font-bold text-emerald-600">
-                        {formatCurrency(reportData.profitLoss.summary.netProfit)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {reportData.trialBalance && (
-                <div className="bg-slate-50 p-4 rounded-xl space-y-3">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-xs text-slate-500">Total Debits</p>
-                      <p className="text-lg font-bold text-blue-600">
-                        {formatCurrency(reportData.trialBalance.summary.totalDebits)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Total Credits</p>
-                      <p className="text-lg font-bold text-orange-600">
-                        {formatCurrency(reportData.trialBalance.summary.totalCredits)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Status</p>
-                      <p className={`text-lg font-bold ${reportData.trialBalance.summary.isBalanced ? 'text-green-600' : 'text-red-600'}`}>
-                        {reportData.trialBalance.summary.isBalanced ? '✓ Balanced' : '✗ Unbalanced'}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500 text-center">
-                    {reportData.trialBalance.trialBalance.length} accounts in trial balance
-                  </p>
-                </div>
-              )}
-
-              {reportData.balanceSheet && (
-                <div className="bg-slate-50 p-4 rounded-xl space-y-3">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-xs text-slate-500">Total Assets</p>
-                      <p className="text-lg font-bold text-blue-600">
-                        {formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.totalAssets)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Total Liabilities</p>
-                      <p className="text-lg font-bold text-orange-600">
-                        {formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.totalLiabilities)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Total Equity</p>
-                      <p className="text-lg font-bold text-purple-600">
-                        {formatCurrency(reportData.balanceSheet.balanceSheet.totals.totalEquity)}
-                      </p>
-                    </div>
-                  </div>
-                  <p className={`text-xs text-center ${reportData.balanceSheet.accountingEquation.isBalanced ? 'text-green-600' : 'text-red-600'}`}>
-                    {reportData.balanceSheet.accountingEquation.isBalanced 
-                      ? '✓ Balance Sheet is Balanced (Assets = Liabilities + Equity)' 
-                      : '✗ Balance Sheet is NOT Balanced'}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
 
     {/* Preview Modal */}
     <Dialog open={showPreview} onOpenChange={setShowPreview}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent>
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Eye className="w-5 h-5 text-slate-600" />
             {selectedConfig?.title} - Preview
@@ -1000,7 +1004,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   {/* Revenue Section */}
                   <div>
                     <h3 className="text-lg font-semibold text-green-600 mb-3">REVENUE</h3>
-                    <div className="border rounded-xl overflow-hidden">
+                    <div className="border rounded-lg overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-green-50">
                           <tr>
@@ -1035,7 +1039,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   {/* Expenses Section */}
                   <div>
                     <h3 className="text-lg font-semibold text-red-600 mb-3">EXPENSES</h3>
-                    <div className="border rounded-xl overflow-hidden">
+                    <div className="border rounded-lg overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-red-50">
                           <tr>
@@ -1068,7 +1072,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   </div>
 
                   {/* Summary Section */}
-                  <div className="bg-slate-100 rounded-xl p-4">
+                  <div className="bg-slate-100 rounded-lg p-4">
                     <div className="grid grid-cols-3 gap-6 text-center">
                       <div>
                         <p className="text-xs text-slate-500 mb-1">Net Profit</p>
@@ -1090,7 +1094,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
               {/* Trial Balance Report Preview */}
               {reportData.trialBalance && (
                 <div className="space-y-6">
-                  <div className="border rounded-xl overflow-hidden">
+                  <div className="border rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-blue-50">
                         <tr>
@@ -1126,7 +1130,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                     </table>
                   </div>
 
-                  <div className="bg-slate-100 rounded-xl p-4">
+                  <div className="bg-slate-100 rounded-lg p-4">
                     <div className="grid grid-cols-3 gap-6 text-center">
                       <div>
                         <p className="text-xs text-slate-500 mb-1">Difference</p>
@@ -1160,7 +1164,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                     
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Current Assets</h4>
-                      <div className="border rounded-xl overflow-hidden">
+                      <div className="border rounded-lg overflow-hidden">
                         <table className="w-full text-sm">
                           <thead className="bg-blue-50">
                             <tr>
@@ -1194,7 +1198,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Fixed Assets</h4>
-                      <div className="border rounded-xl overflow-hidden">
+                      <div className="border rounded-lg overflow-hidden">
                         <table className="w-full text-sm">
                           <thead className="bg-blue-50">
                             <tr>
@@ -1226,7 +1230,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                       </div>
                     </div>
 
-                    <div className="bg-blue-100 rounded-xl p-4 text-center">
+                    <div className="bg-blue-100 rounded-lg p-4 text-center">
                       <p className="text-sm text-blue-600 mb-1">TOTAL ASSETS</p>
                       <p className="text-2xl font-bold text-blue-700">
                         {formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.totalAssets)}
@@ -1240,7 +1244,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                     
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Current Liabilities</h4>
-                      <div className="border rounded-xl overflow-hidden">
+                      <div className="border rounded-lg overflow-hidden">
                         <table className="w-full text-sm">
                           <thead className="bg-orange-50">
                             <tr>
@@ -1274,7 +1278,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Long-term Liabilities</h4>
-                      <div className="border rounded-xl overflow-hidden">
+                      <div className="border rounded-lg overflow-hidden">
                         <table className="w-full text-sm">
                           <thead className="bg-orange-50">
                             <tr>
@@ -1306,7 +1310,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                       </div>
                     </div>
 
-                    <div className="bg-orange-100 rounded-xl p-4 text-center">
+                    <div className="bg-orange-100 rounded-lg p-4 text-center">
                       <p className="text-sm text-orange-600 mb-1">TOTAL LIABILITIES</p>
                       <p className="text-2xl font-bold text-orange-700">
                         {formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.totalLiabilities)}
@@ -1317,7 +1321,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   {/* Equity Section */}
                   <div>
                     <h3 className="text-lg font-semibold text-purple-600 mb-3">EQUITY</h3>
-                    <div className="border rounded-xl overflow-hidden">
+                    <div className="border rounded-lg overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-purple-50">
                           <tr>
@@ -1351,14 +1355,14 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
                   {/* Summary Section */}
                   <div className="space-y-4">
-                    <div className="bg-purple-100 rounded-xl p-4 text-center">
+                    <div className="bg-purple-100 rounded-lg p-4 text-center">
                       <p className="text-sm text-purple-600 mb-1">TOTAL LIABILITIES & EQUITY</p>
                       <p className="text-2xl font-bold text-purple-700">
                         {formatCurrency(reportData.balanceSheet.balanceSheet.totals.totalLiabilitiesAndEquity)}
                       </p>
                     </div>
 
-                    <div className={`rounded-xl p-4 text-center ${
+                    <div className={`rounded-lg p-4 text-center ${
                       reportData.balanceSheet.accountingEquation.isBalanced 
                         ? 'bg-green-100' 
                         : 'bg-red-100'
@@ -1388,8 +1392,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-3 p-4 border-t bg-slate-50 flex-shrink-0">
+        <DialogFooter>
           <Button variant="outline" onClick={() => setShowPreview(false)}>
             Close
           </Button>
@@ -1401,7 +1404,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
             <Download className="w-4 h-4 mr-2" />
             Download PDF
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
     </>

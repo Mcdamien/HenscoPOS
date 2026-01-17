@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -111,7 +112,7 @@ export default function ReturnStoreProductModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RotateCcw className="w-5 h-5" />
@@ -119,87 +120,89 @@ export default function ReturnStoreProductModal({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Product Info - Read Only */}
-          <div className="bg-slate-50 p-3 rounded-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <Package className="w-4 h-4 text-slate-500" />
-              <span className="font-medium">{product.name}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-slate-500">Item ID:</span>
-                <span className="ml-2 font-medium">#{product.itemId}</span>
+        <div className="flex-1 overflow-y-auto p-6">
+          <form id="return-product-form" onSubmit={handleSubmit} className="space-y-4">
+            {/* Product Info - Read Only */}
+            <div className="bg-slate-50 p-3 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Package className="w-4 h-4 text-slate-500" />
+                <span className="font-medium">{product.name}</span>
               </div>
-              <div>
-                <span className="text-slate-500">Current Store Stock:</span>
-                <span className="ml-2 font-medium">{currentStoreStock} units</span>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-slate-500">Item ID:</span>
+                  <span className="ml-2 font-medium">#{product.itemId}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500">Current Store Stock:</span>
+                  <span className="ml-2 font-medium">{currentStoreStock} units</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Store Info */}
-          <div className="bg-blue-50 p-3 rounded-xl flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Store className="w-4 h-4 text-blue-500" />
-              <span className="text-sm text-blue-700">{currentStore}</span>
-            </div>
-            <Badge variant="outline" className="bg-blue-100 text-blue-700">
-              {product.warehouseStock} in Warehouse
-            </Badge>
-          </div>
-
-          {/* Return Info Box */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-            <p className="text-sm text-amber-700">
-              <strong>Return Process:</strong>
-            </p>
-            <p className="text-xs text-amber-600 mt-1">
-              This will create a return request that requires warehouse approval. 
-              Once approved, {returnQty || 0} units will be removed from <strong>{currentStore}</strong> stock 
-              and added back to the warehouse.
-            </p>
-          </div>
-
-          {/* Quantity - Active Field */}
-          <div>
-            <Label htmlFor="qty">Quantity to Return</Label>
-            <Input
-              id="qty"
-              type="number"
-              min="1"
-              max={currentStoreStock}
-              placeholder="Enter quantity to return"
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-              onKeyDown={handleIntegerKeyDown}
-              autoFocus
-            />
-            {qty && returnQty > 0 && (
-              <div className="mt-2 space-y-1">
-                <p className="text-xs text-slate-500">
-                  New Store Stock: <span className="font-medium text-red-600">{newStoreStock} units</span>
-                </p>
-                <p className="text-xs text-slate-500">
-                  New Warehouse Stock: <span className="font-medium text-emerald-600">{newWarehouseStock} units</span>
-                </p>
+            {/* Store Info */}
+            <div className="bg-blue-50 p-3 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Store className="w-4 h-4 text-blue-500" />
+                <span className="text-sm text-blue-700">{currentStore}</span>
               </div>
-            )}
-          </div>
+              <Badge variant="outline" className="bg-blue-100 text-blue-700">
+                {product.warehouseStock} in Warehouse
+              </Badge>
+            </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={submitting || returnQty <= 0 || returnQty > currentStoreStock}
-            >
-              {submitting ? 'Processing...' : 'Confirm Return'}
-            </Button>
-          </div>
-        </form>
+            {/* Return Info Box */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-sm text-amber-700">
+                <strong>Return Process:</strong>
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                This will create a return request that requires warehouse approval. 
+                Once approved, {returnQty || 0} units will be removed from <strong>{currentStore}</strong> stock 
+                and added back to the warehouse.
+              </p>
+            </div>
+
+            {/* Quantity - Active Field */}
+            <div>
+              <Label htmlFor="qty">Quantity to Return</Label>
+              <Input
+                id="qty"
+                type="number"
+                min="1"
+                max={currentStoreStock}
+                placeholder="Enter quantity to return"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                onKeyDown={handleIntegerKeyDown}
+                autoFocus
+              />
+              {qty && returnQty > 0 && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-slate-500">
+                    New Store Stock: <span className="font-medium text-red-600">{newStoreStock} units</span>
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    New Warehouse Stock: <span className="font-medium text-emerald-600">{newWarehouseStock} units</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            form="return-product-form"
+            disabled={submitting || returnQty <= 0 || returnQty > currentStoreStock}
+          >
+            {submitting ? 'Processing...' : 'Confirm Return'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

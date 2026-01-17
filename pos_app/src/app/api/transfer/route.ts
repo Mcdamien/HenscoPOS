@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Start a transaction - create pending transfer (no stock movement yet)
+    // Start a transaction with a longer timeout for batch transfers
     const result = await db.$transaction(async (tx) => {
       // 1. Get next transferId
       const lastTransfer = await tx.stockTransfer.findFirst({
@@ -50,11 +50,18 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // 3. Create transfer items (no stock movement yet)
+      // 3. Fetch all products at once to optimize
+      const productIds = items.map(i => i.productId)
+      const dbProducts = await tx.product.findMany({
+        where: { id: { in: productIds } }
+      })
+
+      const productMap = new Map(dbProducts.map(p => [p.id, p]))
+      const transferItemsData = []
+
+      // 4. Validate all items and prepare data
       for (const item of items) {
-        const product = await tx.product.findUnique({
-          where: { id: item.productId }
-        })
+        const product = productMap.get(item.productId)
 
         if (!product) {
           throw new Error(`Product not found: ${item.productId}`)
@@ -64,18 +71,22 @@ export async function POST(request: NextRequest) {
           throw new Error(`Insufficient stock for ${product.name}! Available: ${product.warehouseStock}`)
         }
 
-        // Create StockTransferItem only (no stock movement)
-        await tx.stockTransferItem.create({
-          data: {
-            stockTransferId: stockTransfer.id,
-            productId: item.productId,
-            itemName: product.name,
-            qty: item.qty
-          }
+        transferItemsData.push({
+          stockTransferId: stockTransfer.id,
+          productId: item.productId,
+          itemName: product.name,
+          qty: item.qty
         })
       }
 
+      // 5. Create all items in one go
+      await tx.stockTransferItem.createMany({
+        data: transferItemsData
+      })
+
       return { transferId: nextTransferId }
+    }, {
+      timeout: 15000 // Increase timeout to 15 seconds for batch operations
     })
 
     return NextResponse.json({ 

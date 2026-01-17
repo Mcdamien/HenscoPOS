@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { Truck, Search, Check, Plus, Trash2, Send, Calendar } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { Truck, Search, Send, Calendar, CheckSquare, Square } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,19 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
 import { handleIntegerKeyDown } from '@/lib/utils'
-import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
 
 interface Product {
   id: string
   itemId: number
   name: string
-  warehouseStock: number
-}
-
-interface TransferItem {
-  productId: string
-  name: string
-  qty: number
+  price: number
   warehouseStock: number
 }
 
@@ -40,78 +34,109 @@ interface TransferModalProps {
   onSuccess: () => void
 }
 
-// Debounce hook
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value)
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value)
-    }, delay)
-
-    return () => {
-      clearTimeout(handler)
-    }
-  }, [value, delay])
-
-  return debouncedValue
-}
-
-// Field refs for keyboard navigation
-// 0: Product search input
-// 1: Qty input
-// 2: Add More button
-// 3: Destination Select
-// 4: Done button
-// 5: Cancel button
-const FIELD_COUNT = 6
-
 export default function TransferModal({ isOpen, onClose, stores, currentStore, products, onSuccess }: TransferModalProps) {
-  const [formData, setFormData] = useState({
-    productId: '',
-    targetStore: currentStore || '',
-    qty: ''
-  })
-  const [transferItems, setTransferItems] = useState<TransferItem[]>([])
-  const [submitting, setSubmitting] = useState(false)
+  const [targetStore, setTargetStore] = useState('')
+  const [selectedQuantities, setSelectedQuantities] = useState<Record<string, string>>({})
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const searchRef = useRef<HTMLDivElement>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  // Refs for keyboard navigation
-  const productSearchRef = useRef<HTMLInputElement>(null)
-  const qtyInputRef = useRef<HTMLInputElement>(null)
-  const addMoreButtonRef = useRef<HTMLButtonElement>(null)
-  const destinationSelectRef = useRef<HTMLButtonElement>(null)
-  const doneButtonRef = useRef<HTMLButtonElement>(null)
-  const cancelButtonRef = useRef<HTMLButtonElement>(null)
+  // Reset target store when modal opens if not set
+  useEffect(() => {
+    if (isOpen && !targetStore) {
+      const firstAvailable = stores.find(s => s !== currentStore)
+      if (firstAvailable) setTargetStore(firstAvailable)
+    }
+  }, [isOpen, stores, currentStore, targetStore])
 
-  // Debounce search term to prevent excessive filtering
-  const debouncedSearchTerm = useDebounce(searchTerm, 200)
-
-  // Filter products based on debounced search term
   const filteredProducts = useMemo(() => {
-    if (!debouncedSearchTerm) return products
-    const query = debouncedSearchTerm.toLowerCase()
+    if (!searchTerm) return products
+    const query = searchTerm.toLowerCase()
     return products.filter(p =>
       p.name.toLowerCase().includes(query) ||
       String(p.itemId).includes(query)
     )
-  }, [products, debouncedSearchTerm])
+  }, [products, searchTerm])
 
-  const availableStores = stores.filter(s => s !== currentStore)
-  const selectedProduct = products.find(p => p.id === formData.productId)
+  const handleQtyChange = (productId: string, value: string) => {
+    setSelectedQuantities(prev => ({ ...prev, [productId]: value }))
+    if (value && parseInt(value) > 0) {
+      setCheckedIds(prev => {
+        const next = new Set(prev)
+        next.add(productId)
+        return next
+      })
+    } else if (value === '0' || value === '') {
+      setCheckedIds(prev => {
+        const next = new Set(prev)
+        next.delete(productId)
+        return next
+      })
+    }
+  }
 
-  const removeItem = (index: number) => {
-    setTransferItems(transferItems.filter((_, i) => i !== index))
+  const toggleItem = (productId: string) => {
+    setCheckedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(productId)) {
+        next.delete(productId)
+      } else {
+        next.add(productId)
+        if (!selectedQuantities[productId] || selectedQuantities[productId] === '0') {
+          setSelectedQuantities(q => ({ ...q, [productId]: '1' }))
+        }
+      }
+      return next
+    })
+  }
+
+  const setPresetQty = (productId: string, qty: number, stock: number) => {
+    const finalQty = Math.min(qty, stock)
+    setSelectedQuantities(prev => ({ ...prev, [productId]: String(finalQty) }))
+    setCheckedIds(prev => {
+      const next = new Set(prev)
+      next.add(productId)
+      return next
+    })
+    if (qty > stock) {
+      toast.warning(`Limited to available stock (${stock})`)
+    }
+  }
+
+  const applyGlobalPreset = (qty: number) => {
+    const newQuantities = { ...selectedQuantities }
+    const newChecked = new Set(checkedIds)
+    
+    products.forEach(product => {
+      if (product.warehouseStock >= qty) {
+        newQuantities[product.id] = String(qty)
+        newChecked.add(product.id)
+      } else {
+        // Skip items with insufficient stock
+        delete newQuantities[product.id]
+        newChecked.delete(product.id)
+      }
+    })
+    
+    setSelectedQuantities(newQuantities)
+    setCheckedIds(newChecked)
+    toast.success(`Applied preset ${qty} to items with sufficient stock`)
   }
 
   const handleSubmit = async () => {
-    if (transferItems.length === 0) {
-      toast.error('Please add at least one item to transfer')
+    const itemsToTransfer = Array.from(checkedIds)
+      .map(id => ({
+        productId: id,
+        qty: parseInt(selectedQuantities[id] || '0')
+      }))
+      .filter(item => item.qty > 0)
+
+    if (itemsToTransfer.length === 0) {
+      toast.error('Please select at least one item with a quantity greater than 0')
       return
     }
-    if (!formData.targetStore) {
+
+    if (!targetStore) {
       toast.error('Please select a destination shop')
       return
     }
@@ -123,11 +148,8 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: transferItems.map(item => ({
-            productId: item.productId,
-            qty: item.qty
-          })),
-          targetStore: formData.targetStore
+          items: itemsToTransfer,
+          targetStore
         })
       })
 
@@ -148,325 +170,198 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
     }
   }
 
-  // Keyboard navigation hook
-  const { focusField, handleKeyDown } = useKeyboardNavigation({
-    fieldCount: FIELD_COUNT,
-    onEnterSubmit: handleSubmit
-  })
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setIsSearchOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  const handleAddItem = () => {
-    if (!formData.productId || !formData.qty || !selectedProduct) {
-      toast.error('Please select a product and quantity')
-      return
-    }
-
-    const qty = parseInt(formData.qty)
-    if (qty <= 0) {
-      toast.error('Quantity must be greater than 0')
-      return
-    }
-
-    if (qty > selectedProduct.warehouseStock) {
-      toast.error('Insufficient warehouse stock')
-      return
-    }
-
-    // Check if already in list
-    const existingIndex = transferItems.findIndex(item => item.productId === formData.productId)
-    if (existingIndex > -1) {
-      const newItems = [...transferItems]
-      const totalQty = newItems[existingIndex].qty + qty
-      if (totalQty > selectedProduct.warehouseStock) {
-        toast.error(`Total quantity (${totalQty}) exceeds available stock (${selectedProduct.warehouseStock})`)
-        return
-      }
-      newItems[existingIndex].qty = totalQty
-      setTransferItems(newItems)
-    } else {
-      setTransferItems([
-        ...transferItems,
-        {
-          productId: formData.productId,
-          name: selectedProduct.name,
-          qty: qty,
-          warehouseStock: selectedProduct.warehouseStock
-        }
-      ])
-    }
-
-    // Reset item fields but keep targetStore
-    setFormData({ ...formData, productId: '', qty: '' })
-    setSearchTerm('')
-    toast.success('Item added to transfer list')
-
-    // Move focus back to product search
-    setTimeout(() => productSearchRef.current?.focus(), 0)
-  }
-
   const handleClose = () => {
-    setFormData({ productId: '', targetStore: currentStore || '', qty: '' })
-    setTransferItems([])
+    setSelectedQuantities({})
+    setCheckedIds(new Set())
     setSearchTerm('')
     onClose()
   }
 
-  const handleProductSelect = (product: Product) => {
-    setFormData({ ...formData, productId: product.id })
-    setSearchTerm(product.name)
-    setIsSearchOpen(false)
-    // Move focus to qty input
-    setTimeout(() => focusField(1), 0)
-  }
-
-  const clearProductSelection = () => {
-    setFormData({ ...formData, productId: '' })
-    setSearchTerm('')
-  }
-
-  // Handle keyboard navigation for inputs
-  const handleProductSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      focusField(1) // Move to qty input
-    } else {
-      handleKeyDown(e, 0)
-    }
-  }
-
-  const handleQtyKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      handleAddItem()
-    } else {
-      handleKeyDown(e, 1)
-      handleIntegerKeyDown(e)
-    }
-  }
-
-  // Focus first field when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => productSearchRef.current?.focus(), 100)
-    }
-  }, [isOpen])
+  const presets = [10, 30, 50, 100]
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent>
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              <Truck className="w-5 h-5" />
-              Stock Transfer System
-            </DialogTitle>
-            <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-              <Calendar className="w-4 h-4" />
-              {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+            <div className="flex flex-col gap-1">
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <Truck className="w-6 h-6 text-emerald-600" />
+                Stock Transfer System
+              </DialogTitle>
+              <div className="flex items-center gap-3 text-xs font-medium">
+                <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                  <Calendar className="w-3.5 h-3.5" />
+                  {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+                {targetStore && (
+                  <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                    TO: {targetStore}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+        <div className="flex-1 flex flex-col min-h-0 p-6 space-y-6 overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
+            <div>
               <Label htmlFor="targetStore">Destination Shop</Label>
               <Select 
-                value={formData.targetStore} 
-                onValueChange={(v) => setFormData({ ...formData, targetStore: v })}
-                open={undefined}
-                onOpenChange={undefined}
+                value={targetStore} 
+                onValueChange={setTargetStore}
               >
-                <SelectTrigger 
-                  ref={destinationSelectRef}
-                  onKeyDown={(e) => handleKeyDown(e, 3)}
-                >
+                <SelectTrigger id="targetStore">
                   <SelectValue placeholder="-- Select Destination --" />
                 </SelectTrigger>
                 <SelectContent>
-                  {stores.map((store) => (
+                  {stores.filter(s => s !== currentStore).map((store) => (
                     <SelectItem key={store} value={store}>
                       {store}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {transferItems.length > 0 && (
-                <p className="text-xs text-slate-500 mt-1">Destination is locked until list is cleared or submitted.</p>
-              )}
             </div>
 
-            <div className="col-span-2 sm:col-span-1">
-              <Label htmlFor="product">Product</Label>
-              <div className="relative" ref={searchRef}>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    ref={productSearchRef}
-                    id="product"
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value)
-                      setIsSearchOpen(true)
-                    }}
-                    onKeyDown={handleProductSearchKeyDown}
-                    className="pl-10"
-                  />
-                  {formData.productId && (
-                    <button
-                      type="button"
-                      onClick={clearProductSelection}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-                
-                {isSearchOpen && searchTerm && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {filteredProducts.length === 0 ? (
-                      <div className="p-3 text-sm text-slate-500 text-center">No matches</div>
-                    ) : (
-                      filteredProducts.map((product) => (
-                        <button
-                          key={product.id}
-                          type="button"
-                          onClick={() => handleProductSelect(product)}
-                          className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-100 flex items-center justify-between ${
-                            formData.productId === product.id ? 'bg-slate-50' : ''
-                          }`}
-                        >
-                          <span>{product.name} <span className="text-slate-400">({product.warehouseStock})</span></span>
-                          {formData.productId === product.id && <Check className="w-4 h-4 text-emerald-600" />}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="col-span-2 sm:col-span-1 flex gap-2 items-end">
-              <div className="flex-1">
-                <Label htmlFor="qty">Qty</Label>
+            <div>
+              <Label htmlFor="search">Search Products</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  ref={qtyInputRef}
-                  id="qty"
-                  type="number"
-                  min="1"
-                  max={selectedProduct?.warehouseStock}
-                  value={formData.qty}
-                  onChange={(e) => setFormData({ ...formData, qty: e.target.value })}
-                  onKeyDown={handleQtyKeyDown}
+                  id="search"
+                  placeholder="Search by name or ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
                 />
               </div>
-              <Button 
-                ref={addMoreButtonRef}
-                type="button" 
-                variant="secondary" 
-                onClick={handleAddItem}
-                disabled={!formData.productId || !formData.qty}
-                onKeyDown={(e) => {
-                  if (e.key === 'Tab' && !e.shiftKey) {
-                    e.preventDefault()
-                    focusField(3) // Move to destination select
-                  } else if (e.key === 'Tab' && e.shiftKey) {
-                    e.preventDefault()
-                    focusField(0) // Move to product search
-                  } else if (e.key === 'Enter') {
-                    handleAddItem()
-                  }
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add More
-              </Button>
             </div>
           </div>
 
-          {transferItems.length > 0 && (
-            <div className="border rounded-md overflow-hidden">
+          <div className="border rounded-md overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto">
               <Table>
-                <TableHeader className="bg-slate-50">
+                <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                   <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-center w-24">Qty</TableHead>
-                    <TableHead className="text-right w-16"></TableHead>
+                    <TableHead className="w-12 text-center">Sel</TableHead>
+                    <TableHead>Product Details</TableHead>
+                    <TableHead className="text-right w-24">Price</TableHead>
+                    <TableHead className="text-center w-24">Whse Stock</TableHead>
+                    <TableHead className="w-40">Transfer Qty</TableHead>
+                    <TableHead className="hidden md:table-cell text-right w-56">
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] uppercase text-slate-400">Apply All</span>
+                        <div className="flex gap-1">
+                          {presets.map(p => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => applyGlobalPreset(p)}
+                              className="px-2 py-0.5 text-[10px] font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100 transition-colors"
+                            >
+                              {p}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transferItems.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="py-2">{item.name}</TableCell>
-                      <TableCell className="text-center py-2">{item.qty}</TableCell>
-                      <TableCell className="text-right py-2">
-                        <button 
-                          onClick={() => removeItem(index)} 
-                          className="text-red-500 hover:text-red-700"
-                          tabIndex={-1}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                  {filteredProducts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-20 text-slate-500">
+                        <div className="flex flex-col items-center gap-2">
+                          <Search className="w-8 h-8 opacity-20" />
+                          <p>No products found matching your search</p>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <TableRow key={product.id} className={checkedIds.has(product.id) ? 'bg-emerald-50/50' : ''}>
+                        <TableCell className="text-center">
+                          <button
+                            type="button"
+                            onClick={() => toggleItem(product.id)}
+                            className={`p-1.5 rounded-md transition-colors ${
+                              checkedIds.has(product.id) ? 'bg-emerald-100 text-emerald-600' : 'text-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            {checkedIds.has(product.id) ? (
+                              <CheckSquare className="w-5 h-5" />
+                            ) : (
+                              <Square className="w-5 h-5" />
+                            )}
+                          </button>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-semibold text-sm">{product.name}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">CODE: {product.itemId}</div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          GHS {product.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-center font-bold text-slate-700">
+                          {product.warehouseStock}
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={product.warehouseStock}
+                            value={selectedQuantities[product.id] || ''}
+                            onChange={(e) => handleQtyChange(product.id, e.target.value)}
+                            onKeyDown={handleIntegerKeyDown}
+                            className={`h-9 font-medium ${checkedIds.has(product.id) ? 'border-emerald-500 ring-1 ring-emerald-500/20' : ''}`}
+                            placeholder="0"
+                          />
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-right text-xs text-slate-400">
+                          {checkedIds.has(product.id) ? 'Selected' : ''}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button 
-              ref={cancelButtonRef}
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-              onKeyDown={(e) => {
-                if (e.key === 'Tab' && e.shiftKey) {
-                  e.preventDefault()
-                  focusField(4) // Move to done button
-                } else if (e.key === 'Enter') {
-                  handleClose()
-                }
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              ref={doneButtonRef}
-              onClick={handleSubmit}
-              disabled={submitting || transferItems.length === 0 || !formData.targetStore}
-              className="bg-emerald-600 hover:bg-emerald-700"
-              onKeyDown={(e) => {
-                if (e.key === 'Tab' && e.shiftKey) {
-                  e.preventDefault()
-                  focusField(5) // Move to cancel button
-                }
-              }}
-            >
-              {submitting ? 'Processing...' : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  Done
-                </>
-              )}
-            </Button>
           </div>
         </div>
+
+        <DialogFooter className="bg-slate-50 border-t p-4 sm:flex-row flex-col gap-4">
+          <div className="flex items-center justify-between w-full">
+            <div className="text-sm font-medium">
+              <span className="text-slate-500">Selected:</span>
+              <span className="ml-1 text-emerald-600">{checkedIds.size} items</span>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleClose}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmit}
+                disabled={submitting || checkedIds.size === 0 || !targetStore}
+                className="bg-emerald-600 hover:bg-emerald-700 min-w-[140px] shadow-sm"
+              >
+                {submitting ? 'Processing...' : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Transfer
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
-

@@ -103,50 +103,127 @@ export async function POST(request: NextRequest) {
     const tax = subtotal * 0.125
     const total = subtotal + tax
 
-    // Get the next transaction ID
-    const lastTransaction = await db.transaction.findFirst({
-      orderBy: { transactionId: 'desc' }
-    })
-    const nextTransactionId = lastTransaction ? lastTransaction.transactionId + 1 : Math.floor(Math.random() * 10000)
+    // Use a transaction to ensure atomicity
+    const result = await db.$transaction(async (tx) => {
+      // 1. Get the next transaction ID
+      const lastTransaction = await tx.transaction.findFirst({
+        orderBy: { transactionId: 'desc' }
+      })
+      const nextTransactionId = lastTransaction ? lastTransaction.transactionId + 1 : 10001
 
-    // Create transaction
-    const transaction = await db.transaction.create({
-      data: {
-        transactionId: nextTransactionId,
-        storeId: storeRecord.id,
-        subtotal,
-        tax,
-        total,
-        items: {
-          create: itemsToCreate
-        }
-      },
-      include: {
-        items: true
-      }
-    })
-
-    // Update inventory for each item
-    for (const update of inventoryUpdates) {
-      await db.inventory.update({
-        where: { id: update.inventoryId },
+      // 2. Create transaction
+      const transaction = await tx.transaction.create({
         data: {
-          stock: {
-            decrement: update.qty
+          transactionId: nextTransactionId,
+          storeId: storeRecord.id,
+          subtotal,
+          tax,
+          total,
+          items: {
+            create: itemsToCreate
           }
+        },
+        include: {
+          items: true
         }
       })
-    }
+
+      // 3. Update inventory for each item
+      for (const update of inventoryUpdates) {
+        await tx.inventory.update({
+          where: { id: update.inventoryId },
+          data: {
+            stock: {
+              decrement: update.qty
+            }
+          }
+        })
+      }
+
+      // 4. Accounting Entries
+      // Generate entry number
+      const lastEntry = await tx.journalEntry.findFirst({
+        orderBy: { entryNumber: 'desc' }
+      })
+      const lastNum = lastEntry ? parseInt(lastEntry.entryNumber.replace('JE', '')) : 0
+      const entryNumber = `JE${(lastNum + 1).toString().padStart(6, '0')}`
+
+      // A. Sale: Debit Cash (1010), Credit Sales Revenue (4010)
+      const cashAccount = await tx.account.findUnique({ where: { code: '1010' } })
+      const revenueAccount = await tx.account.findUnique({ where: { code: '4010' } })
+      
+      // B. COGS: Debit COGS (5100), Credit Inventory (1030)
+      const cogsAccount = await tx.account.findUnique({ where: { code: '5100' } })
+      const inventoryAccount = await tx.account.findUnique({ where: { code: '1030' } })
+
+      if (cashAccount && revenueAccount) {
+        const totalCost = itemsToCreate.reduce((sum, item) => sum + (item.itemCost * item.qty), 0)
+
+        await tx.journalEntry.create({
+          data: {
+            entryNumber,
+            date: new Date(),
+            description: `Sales from ${store} (TXN #${nextTransactionId})`,
+            isPosted: true,
+            lines: {
+              create: [
+                { accountId: cashAccount.id, description: `Cash from sale`, debit: total, credit: 0 },
+                { accountId: revenueAccount.id, description: `Sales revenue`, debit: 0, credit: total },
+              ]
+            }
+          }
+        })
+
+        // Update balances
+        await tx.account.update({
+          where: { id: cashAccount.id },
+          data: { balance: { increment: total } }
+        })
+        await tx.account.update({
+          where: { id: revenueAccount.id },
+          data: { balance: { increment: total } }
+        })
+
+        if (cogsAccount && inventoryAccount && totalCost > 0) {
+          const cogsEntryNumber = `JE${(lastNum + 2).toString().padStart(6, '0')}`
+          await tx.journalEntry.create({
+            data: {
+              entryNumber: cogsEntryNumber,
+              date: new Date(),
+              description: `COGS for ${store} (TXN #${nextTransactionId})`,
+              isPosted: true,
+              lines: {
+                create: [
+                  { accountId: cogsAccount.id, description: `Cost of goods sold`, debit: totalCost, credit: 0 },
+                  { accountId: inventoryAccount.id, description: `Inventory reduction`, debit: 0, credit: totalCost },
+                ]
+              }
+            }
+          })
+
+          await tx.account.update({
+            where: { id: cogsAccount.id },
+            data: { balance: { increment: totalCost } }
+          })
+          await tx.account.update({
+            where: { id: inventoryAccount.id },
+            data: { balance: { decrement: totalCost } }
+          })
+        }
+      }
+
+      return transaction
+    })
 
     // Return transaction data for receipt
     return NextResponse.json({
-      id: transaction.transactionId,
-      date: transaction.createdAt.toISOString(),
+      id: result.transactionId,
+      date: result.createdAt.toISOString(),
       store: store,
-      subtotal: transaction.subtotal,
-      tax: transaction.tax,
-      total: transaction.total,
-      items: transaction.items.map(item => ({
+      subtotal: result.subtotal,
+      tax: result.tax,
+      total: result.total,
+      items: result.items.map(item => ({
         id: item.id,
         itemName: item.itemName,
         itemPrice: item.itemPrice,

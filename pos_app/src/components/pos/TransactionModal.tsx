@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -331,15 +332,29 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
     addCustomAccountIfNeeded()
 
     try {
-      // Simulate API call - replace with actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Get the account name (from merged accounts)
-      const selectedAccount = mergedAccounts.find(acc => acc.code === formData.account)
-      const accountName = formData.otherAccount.trim() 
-        ? formData.otherAccount.trim() 
-        : (selectedAccount ? `${selectedAccount.code} - ${selectedAccount.name}` : '')
+      const response = await fetch('/api/accounting', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          date: formData.date,
+          description: formData.description,
+          account: formData.account,
+          otherAccount: formData.otherAccount.trim(),
+          debit: parseFloat(formData.debit) || 0,
+          credit: parseFloat(formData.credit) || 0,
+          type: type
+        })
+      })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add transaction')
+      }
+      
+      const journalEntry = await response.json()
+      
       const transaction = {
         date: formData.date,
         description: formData.description,
@@ -354,9 +369,9 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
       toast.success(`${config.title.split(' ')[2]} added successfully!`)
       onSuccess(transaction)
       handleClose()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add transaction:', error)
-      toast.error('Failed to add transaction')
+      toast.error(error.message || 'Failed to add transaction')
     } finally {
       setSubmitting(false)
     }
@@ -385,7 +400,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className={`w-5 h-5 ${config.iconColor}`} />
@@ -393,183 +408,184 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Date Field - Keep as is */}
-          <div>
-            <Label htmlFor="date">Date of Entry</Label>
-            <Input
-              id="date"
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              required
-            />
-          </div>
-
-          {/* Type of Account Dropdown - NOW SHOWS CUSTOM ACCOUNTS TOO */}
-          <div>
-            <Label htmlFor="account">Type of Account</Label>
-            <Select
-              value={formData.account}
-              onValueChange={(value) => setFormData({ ...formData, account: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select account type..." />
-              </SelectTrigger>
-              <SelectContent>
-                {mergedAccounts.map((account) => {
-                  const isCustom = customAccountCodes.has(account.code)
-                  return (
-                    <SelectItem key={account.code} value={account.code}>
-                      {account.code} - {account.name}{isCustom && ' (Custom)'}
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-            {customAccountCodes.size > 0 && (
-              <p className="text-xs text-blue-600 mt-1">
-                ✓ {customAccountCodes.size} custom account(s) available
-              </p>
-            )}
-          </div>
-
-          {/* Other Account - WITH AUTO-SAVE TO DROP DOWN */}
-          <div>
-            <Label htmlFor="otherAccount">Other Account (Optional)</Label>
-            <div className="relative">
+        <div className="flex-1 overflow-y-auto p-6">
+          <form id="transaction-form" onSubmit={handleSubmit} className="space-y-4">
+            {/* Date Field - Keep as is */}
+            <div>
+              <Label htmlFor="date">Date of Entry</Label>
               <Input
-                id="otherAccount"
-                type="text"
-                placeholder="Enter unique account name if not listed..."
-                value={formData.otherAccount}
-                onChange={(e) => {
-                  setFormData({ ...formData, otherAccount: e.target.value })
-                  setOtherAccountTouched(true)
-                }}
-                onBlur={() => setOtherAccountTouched(false)}
-                className="pr-10"
+                id="date"
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                required
               />
-              {formData.otherAccount && (
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, otherAccount: '' })}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+            </div>
+
+            {/* Type of Account Dropdown - NOW SHOWS CUSTOM ACCOUNTS TOO */}
+            <div>
+              <Label htmlFor="account">Type of Account</Label>
+              <Select
+                value={formData.account}
+                onValueChange={(value) => setFormData({ ...formData, account: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {mergedAccounts.map((account) => {
+                    const isCustom = customAccountCodes.has(account.code)
+                    return (
+                      <SelectItem key={account.code} value={account.code}>
+                        {account.code} - {account.name}{isCustom && ' (Custom)'}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+              {customAccountCodes.size > 0 && (
+                <p className="text-xs text-blue-600 mt-1">
+                  ✓ {customAccountCodes.size} custom account(s) available
+                </p>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Use this for accounts not listed above. New accounts are automatically saved and appear in dropdown for next transaction.
-            </p>
-          </div>
 
-          {/* Description - NEW positioned after account */}
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Input
-              id="description"
-              type="text"
-              placeholder={config.placeholder}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              required
-            />
-          </div>
-
-          {/* Debit and Credit Fields with Gray-out Logic */}
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="debit" className={cn(isDebitDisabled && "text-slate-400")}>
-                  Debit (GHS)
-                </Label>
+            {/* Other Account - WITH AUTO-SAVE TO DROP DOWN */}
+            <div>
+              <Label htmlFor="otherAccount">Other Account (Optional)</Label>
+              <div className="relative">
                 <Input
-                  id="debit"
+                  id="otherAccount"
                   type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*\.?[0-9]{0,2}"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={formData.debit}
-                  onChange={(e) => setFormData({ ...formData, debit: handleNumberChange(e.target.value) })}
-                  onKeyDown={handleNumberKeyDown}
-                  disabled={isDebitDisabled}
-                  className={cn(isDebitDisabled && "bg-slate-50 text-slate-400")}
+                  placeholder="Enter unique account name if not listed..."
+                  value={formData.otherAccount}
+                  onChange={(e) => {
+                    setFormData({ ...formData, otherAccount: e.target.value })
+                    setOtherAccountTouched(true)
+                  }}
+                  onBlur={() => setOtherAccountTouched(false)}
+                  className="pr-10"
                 />
-                <p className="text-xs text-slate-500 mt-1">
-                  {isDebitDefault ? "Money coming in" : "Default disabled for this account type"}
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="credit" className={cn(isCreditDisabled && "text-slate-400")}>
-                  Credit (GHS)
-                </Label>
-                <Input
-                  id="credit"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*\.?[0-9]{0,2}"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={formData.credit}
-                  onChange={(e) => setFormData({ ...formData, credit: handleNumberChange(e.target.value) })}
-                  onKeyDown={handleNumberKeyDown}
-                  disabled={isCreditDisabled}
-                  className={cn(isCreditDisabled && "bg-slate-50 text-slate-400")}
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  {isCreditDefault ? "Money going out" : "Default disabled for this account type"}
-                </p>
-              </div>
-            </div>
-
-            {/* Override Checkbox */}
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setOverrideGrayOut(!overrideGrayOut)}
-                className="flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900"
-              >
-                {overrideGrayOut ? (
-                  <CheckSquare className="w-4 h-4 text-blue-600" />
-                ) : (
-                  <Square className="w-4 h-4 text-slate-400" />
+                {formData.otherAccount && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, otherAccount: '' })}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 )}
-                <span className="font-medium">Override & Enable Both Fields</span>
-              </button>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Use this for accounts not listed above. New accounts are automatically saved and appear in dropdown for next transaction.
+              </p>
             </div>
-            <p className="text-xs text-slate-500 pl-6">
-              Check this to allow entry in both debit and credit fields when needed
-            </p>
-          </div>
 
-          {/* Total Display */}
-          <div className="bg-slate-50 p-4 rounded-lg">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-slate-700">Total:</span>
-              <span className={`text-lg font-bold ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(Math.abs(total))}
-              </span>
+            {/* Description - NEW positioned after account */}
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                type="text"
+                placeholder={config.placeholder}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                required
+              />
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              {total >= 0 ? 'Net Debit' : 'Net Credit'}
-            </p>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? 'Saving...' : 'Save Transaction'}
-            </Button>
-          </div>
-        </form>
+            {/* Debit and Credit Fields with Gray-out Logic */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="debit" className={cn(isDebitDisabled && "text-slate-400")}>
+                    Debit (GHS)
+                  </Label>
+                  <Input
+                    id="debit"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*\.?[0-9]{0,2}"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.debit}
+                    onChange={(e) => setFormData({ ...formData, debit: handleNumberChange(e.target.value) })}
+                    onKeyDown={handleNumberKeyDown}
+                    disabled={isDebitDisabled}
+                    className={cn(isDebitDisabled && "bg-slate-50 text-slate-400")}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isDebitDefault ? "Money coming in" : "Default disabled for this account type"}
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="credit" className={cn(isCreditDisabled && "text-slate-400")}>
+                    Credit (GHS)
+                  </Label>
+                  <Input
+                    id="credit"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*\.?[0-9]{0,2}"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.credit}
+                    onChange={(e) => setFormData({ ...formData, credit: handleNumberChange(e.target.value) })}
+                    onKeyDown={handleNumberKeyDown}
+                    disabled={isCreditDisabled}
+                    className={cn(isCreditDisabled && "bg-slate-50 text-slate-400")}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isCreditDefault ? "Money going out" : "Default disabled for this account type"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Override Checkbox */}
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setOverrideGrayOut(!overrideGrayOut)}
+                  className="flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900"
+                >
+                  {overrideGrayOut ? (
+                    <CheckSquare className="w-4 h-4 text-blue-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-slate-400" />
+                  )}
+                  <span className="font-medium">Override & Enable Both Fields</span>
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 pl-6">
+                Check this to allow entry in both debit and credit fields when needed
+              </p>
+            </div>
+
+            {/* Total Display */}
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-slate-700">Total:</span>
+                <span className={`text-lg font-bold ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(Math.abs(total))}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                {total >= 0 ? 'Net Debit' : 'Net Credit'}
+              </p>
+            </div>
+          </form>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="transaction-form" disabled={submitting}>
+            {submitting ? 'Saving...' : 'Save Transaction'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

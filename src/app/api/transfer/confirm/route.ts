@@ -77,15 +77,27 @@ export async function POST(request: NextRequest) {
     console.log('Processing stock transfer for store:', store.name)
     console.log('Items to transfer:', transfer.items.length)
 
-    // Process the stock transfer in a transaction
+    // Process the stock transfer in a transaction with a longer timeout
     const result = await db.$transaction(async (tx) => {
-      // 1. Process each item
+      // 1. Fetch all products involved at once
+      const productIds = transfer.items.map(item => item.productId)
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds } }
+      })
+      const productMap = new Map(products.map(p => [p.id, p]))
+
+      // 2. Fetch all existing inventory records at once
+      const existingInventories = await tx.inventory.findMany({
+        where: {
+          storeId: store!.id,
+          productId: { in: productIds }
+        }
+      })
+      const inventoryMap = new Map(existingInventories.map(inv => [inv.productId, inv]))
+
+      // 3. Process each item
       for (const item of transfer.items) {
-        console.log(`Processing item: ${item.itemName} (${item.qty} units)`)
-        
-        const product = await tx.product.findUnique({
-          where: { id: item.productId }
-        })
+        const product = productMap.get(item.productId)
 
         if (!product) {
           throw new Error(`Product not found: ${item.productId}`)
@@ -107,17 +119,9 @@ export async function POST(request: NextRequest) {
         })
 
         // Update or create store inventory
-        const existingInventory = await tx.inventory.findUnique({
-          where: {
-            storeId_productId: {
-              storeId: store!.id,
-              productId: item.productId
-            }
-          }
-        })
+        const existingInventory = inventoryMap.get(item.productId)
 
         if (existingInventory) {
-          console.log(`Updating existing inventory for ${product.name}`)
           await tx.inventory.update({
             where: { id: existingInventory.id },
             data: {
@@ -127,7 +131,6 @@ export async function POST(request: NextRequest) {
             }
           })
         } else {
-          console.log(`Creating new inventory for ${product.name}`)
           await tx.inventory.create({
             data: {
               storeId: store!.id,
@@ -138,7 +141,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 2. Update transfer status
+      // 4. Update transfer status
       const updatedTransfer = await tx.stockTransfer.update({
         where: { id: transfer.id },
         data: {
@@ -148,8 +151,9 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      console.log('Transfer confirmed successfully:', updatedTransfer.transferId)
       return updatedTransfer
+    }, {
+      timeout: 25000 // Increase timeout to 25 seconds for large batch confirmation
     })
 
     return NextResponse.json({

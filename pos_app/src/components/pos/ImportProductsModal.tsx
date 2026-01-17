@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -165,7 +166,7 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
@@ -173,9 +174,9 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="flex-1 overflow-y-auto p-6">
           {!results ? (
-            <>
+            <div className="space-y-6">
               <div className="space-y-2">
                 <p className="text-sm text-slate-500">
                   Upload an Excel file (.xlsx or .xls) with the following columns:
@@ -218,30 +219,10 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={handleClose} disabled={importing}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleImport} 
-                  disabled={!file || importing}
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                >
-                  {importing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Importing...
-                    </>
-                  ) : (
-                    'Start Import'
-                  )}
-                </Button>
-              </div>
-
-              <Button onClick={handleGenerateSampleFile} className="mt-4">
+              <Button onClick={handleGenerateSampleFile} variant="outline" className="w-full">
                 Generate Sample File
               </Button>
-            </>
+            </div>
           ) : (
             <div className="space-y-6">
               <Alert className="bg-emerald-50 border-emerald-200">
@@ -266,13 +247,37 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
                   <p className="text-2xl font-black text-red-600">{results.errors}</p>
                 </div>
               </div>
-
-              <Button onClick={handleClose} className="w-full">
-                Done
-              </Button>
             </div>
           )}
         </div>
+
+        <DialogFooter>
+          {!results ? (
+            <div className="flex justify-end gap-3 w-full">
+              <Button variant="outline" onClick={handleClose} disabled={importing}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleImport} 
+                disabled={!file || importing}
+                className="bg-emerald-600 hover:bg-emerald-700 min-w-[120px]"
+              >
+                {importing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  'Start Import'
+                )}
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={handleClose} className="w-full">
+              Done
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

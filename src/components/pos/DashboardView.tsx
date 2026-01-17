@@ -93,18 +93,26 @@ export default function DashboardView() {
         
         if (statsRes.ok) {
           const statsData = await statsRes.json()
+          console.log('Dashboard Stats Response:', statsData)
           if (statsData && !statsData.error) {
             setStats(statsData)
+          } else {
+            console.error('Stats error:', statsData?.error)
           }
+        } else {
+          console.error('Stats API error:', statsRes.status, statsRes.statusText)
         }
         
         if (txRes.ok) {
           const txData = await txRes.json()
+          console.log('Transactions Response:', { count: Array.isArray(txData) ? txData.length : 'not array', data: txData })
           if (Array.isArray(txData)) {
             setTransactions(txData)
             // Group transactions by shop
             setShopGroups(groupTransactionsByShop(txData))
           }
+        } else {
+          console.error('Transactions API error:', txRes.status, txRes.statusText)
         }
 
         if (transferRes.ok) {

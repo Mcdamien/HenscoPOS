@@ -126,7 +126,7 @@ export default function AccountingView() {
               </div>
             )}
           </div>
-          <div className={`p-3 rounded-lg ${color.replace('text-', 'bg-').replace('-600', '-100')}`}>
+          <div className={`p-3 rounded-xl ${color.replace('text-', 'bg-').replace('-600', '-100')}`}>
             <Icon className={`w-5 h-5 ${color}`} />
           </div>
         </div>

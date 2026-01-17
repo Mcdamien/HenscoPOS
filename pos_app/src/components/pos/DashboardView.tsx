@@ -93,24 +93,32 @@ export default function DashboardView() {
         
         if (statsRes.ok) {
           const statsData = await statsRes.json()
-          setStats(statsData)
+          if (statsData && !statsData.error) {
+            setStats(statsData)
+          }
         }
         
         if (txRes.ok) {
           const txData = await txRes.json()
-          setTransactions(txData)
-          // Group transactions by shop
-          setShopGroups(groupTransactionsByShop(txData))
+          if (Array.isArray(txData)) {
+            setTransactions(txData)
+            // Group transactions by shop
+            setShopGroups(groupTransactionsByShop(txData))
+          }
         }
 
         if (transferRes.ok) {
           const transferData = await transferRes.json()
-          setTransfers(transferData)
+          if (Array.isArray(transferData)) {
+            setTransfers(transferData)
+          }
         }
 
         if (inventoryRes.ok) {
           const inventoryData = await inventoryRes.json()
-          setInventoryAdditions(inventoryData)
+          if (Array.isArray(inventoryData)) {
+            setInventoryAdditions(inventoryData)
+          }
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error)
@@ -160,26 +168,31 @@ export default function DashboardView() {
     }).sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime()) // Sort by most recent
   }
 
-  const StatCard = ({ title, value, trend, icon: Icon, trendColor, onClick }: any) => (
+  const StatCard = ({ title, value, trend, icon: Icon, color, bgColor, onClick }: any) => (
     <Card 
       className={cn(
-        "transition-all",
+        "transition-all border shadow-sm",
+        bgColor || "bg-white",
         onClick && "cursor-pointer hover:border-emerald-500 hover:shadow-md active:scale-[0.98]"
       )}
       onClick={onClick}
     >
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-600">{title}</p>
-            <p className="text-2xl font-bold text-slate-900 mt-2">{value}</p>
-            <div className={`flex items-center gap-1 text-xs mt-2 ${trendColor}`}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">{title}</p>
+          {Icon && (
+            <div className={cn("p-2 rounded-lg", color.replace('text-', 'bg-').replace('-600', '-50'))}>
+              <Icon className={cn("w-4 h-4", color)} />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col items-start gap-1">
+          <p className={cn("text-2xl font-bold", color || "text-slate-900")}>{value}</p>
+          {trend && (
+            <div className={cn("flex items-center gap-1 text-[10px]", color)}>
               {trend}
             </div>
-          </div>
-          <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-slate-100">
-            <Icon className="w-5 h-5 text-emerald-600" />
-          </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -204,18 +217,19 @@ export default function DashboardView() {
       </div>
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <StatCard
           title="Total Transactions"
-          value={stats.transactions}
+          value={stats.transactions.toString()}
           trend={
             <>
-              <CheckCircle className="w-4 h-4" />
-              <span>Click to view sales analytics</span>
+              <CheckCircle className="w-3 h-3" />
+              <span>Sales count</span>
             </>
           }
           icon={CheckCircle}
-          trendColor="text-emerald-600"
+          color="text-emerald-600"
+          bgColor="bg-white"
           onClick={() => setShowReports(true)}
         />
         <StatCard
@@ -223,67 +237,70 @@ export default function DashboardView() {
           value={formatCurrency(stats.totalSales)}
           trend={
             <>
-              <BarChart3 className="w-4 h-4" />
-              <span>View company performance</span>
+              <BarChart3 className="w-3 h-3" />
+              <span>Performance</span>
             </>
           }
           icon={DollarSign}
-          trendColor="text-blue-600"
+          color="text-blue-600"
+          bgColor="bg-white"
           onClick={() => setShowReports(true)}
         />
         <StatCard
-          title="Estimated Net Profit"
+          title="Net Profit"
           value={formatCurrency(stats.netProfit)}
           trend={
             <>
-              <PiggyBank className="w-4 h-4" />
-              <span>Total profit after costs</span>
+              <PiggyBank className="w-3 h-3" />
+              <span>After costs</span>
             </>
           }
           icon={PiggyBank}
-          trendColor="text-emerald-600"
+          color="text-emerald-600"
+          bgColor="bg-white"
         />
-        <Card 
-          className="cursor-pointer hover:border-amber-500 hover:shadow-md active:scale-[0.98] transition-all"
+        <StatCard
+          title="Today's Sales"
+          value={formatCurrency(stats.dailySales)}
+          trend={
+            <>
+              <Calendar className="w-3 h-3" />
+              <span>Click to view all shop sales</span>
+            </>
+          }
+          icon={Calendar}
+          color="text-indigo-600"
+          bgColor="bg-white"
+          onClick={() => setSelectedShopTransactions(transactions)}
+        />
+        <StatCard
+          title="Out of Stock"
+          value={stats.outOfStockCount}
+          trend={
+            <>
+              <XCircle className="w-3 h-3" />
+              <span>Restock needed</span>
+            </>
+          }
+          icon={XCircle}
+          color="text-red-600"
+          bgColor="bg-white"
           onClick={() => setShowRestockModal(true)}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Inventory Status</p>
-                <div className="mt-3 space-y-2">
-                  {/* Out of Stock */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-100">
-                      <XCircle className="w-4 h-4 text-red-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Out of Stock</p>
-                      <p className="text-xl font-bold text-red-600">{stats.outOfStockCount}</p>
-                    </div>
-                  </div>
-                  {/* Low Stock */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100">
-                      <AlertTriangle className="w-4 h-4 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Low Stock</p>
-                      <p className="text-xl font-bold text-amber-600">{stats.lowStockCount}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 text-xs mt-3 text-amber-600">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>Click to view restock details</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-amber-100">
-                <AlertTriangle className="w-5 h-5 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        />
+        <StatCard
+          title="Low Stock"
+          value={stats.lowStockCount}
+          trend={
+            <>
+              <AlertTriangle className="w-3 h-3" />
+              <span>Low threshold</span>
+            </>
+          }
+          icon={AlertTriangle}
+          color="text-amber-600"
+          bgColor="bg-white"
+          onClick={() => setShowRestockModal(true)}
+        />
       </div>
 
       {/* Recent Transactions */}

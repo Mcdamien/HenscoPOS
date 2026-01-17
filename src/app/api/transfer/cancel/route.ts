@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     console.log('Parsed transferId:', parsedTransferId)
 
     // Find the transfer
-    const transfer = await db.stock_transfers.findUnique({
+    const transfer = await db.stockTransfer.findUnique({
       where: { transferId: parsedTransferId }
     })
 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update transfer status to cancelled
-    const cancelledTransfer = await db.stock_transfers.update({
+    const cancelledTransfer = await db.stockTransfer.update({
       where: { id: transfer.id },
       data: {
         status: 'cancelled',

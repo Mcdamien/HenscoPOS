@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const store = searchParams.get('store')
 
-    let lowStockItems = []
+    let lowStockItems: any[] = []
 
     if (!store || store === 'Warehouse') {
       // Get all products with their warehouse stock

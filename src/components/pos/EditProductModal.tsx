@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -101,7 +102,7 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
   }
 
   // Keyboard navigation hook
-  const { focusField, handleKeyDown } = useKeyboardNavigation({
+  const { registerField, handleKeyDown, focusField } = useKeyboardNavigation({
     fieldCount: FIELD_COUNT,
     onEnterSubmit: handleSubmit
   })
@@ -130,124 +131,148 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
   // Focus first field when modal opens
   useEffect(() => {
     if (isOpen && product) {
-      setTimeout(() => costInputRef.current?.focus(), 100)
+      setTimeout(() => focusField(0), 100)
     }
-  }, [isOpen, product])
+  }, [isOpen, product, focusField])
 
   if (!product) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
-            Edit Product
+      <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+            <Package className="w-6 h-6 text-emerald-600" />
+            Edit Product Details
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Product Info - Read Only */}
-          <div className="bg-slate-50 p-3 rounded-xl">
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-slate-500">Item ID:</span>
-                <span className="ml-2 font-medium">#{product.itemId}</span>
+        <div className="flex-1 overflow-y-auto p-6">
+          <form id="edit-product-form" onSubmit={handleSubmit} className="space-y-8">
+            {/* Product Summary Card */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                  <Package className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">{product.name}</h3>
+                  <p className="text-sm font-medium text-slate-500">Item ID: #{product.itemId}</p>
+                </div>
               </div>
-              <div>
-                <span className="text-slate-500">Product:</span>
-                <span className="ml-2 font-medium">{product.name}</span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-slate-500">Current Stock:</span>
-                <span className="ml-2 font-medium">{product.warehouseStock} units</span>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white p-3 rounded-xl border border-slate-100">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Current Stock</span>
+                  <p className="text-xl font-bold text-slate-900">{product.warehouseStock} units</p>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-slate-100">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Current Value</span>
+                  <p className="text-xl font-bold text-slate-900">GHS {(product.warehouseStock * product.cost).toLocaleString()}</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Price Fields */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="cost">Cost (GHS)</Label>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="cost" className="text-sm font-semibold text-slate-700">Cost Price (GHS)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">₵</span>
+                  <Input
+                    ref={registerField(0)}
+                    id="cost"
+                    type="number"
+                    step="0.01"
+                    className="h-12 pl-8 text-lg font-medium border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                    value={formData.cost}
+                    onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                    onKeyDown={handleCostKeyDown}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="price" className="text-sm font-semibold text-slate-700">Selling Price (GHS)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">₵</span>
+                  <Input
+                    ref={registerField(1)}
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    className="h-12 pl-8 text-lg font-medium border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onKeyDown={handlePriceKeyDown}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="addQty" className="text-sm font-bold text-emerald-900">Add Stock Inventory</Label>
+                <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200">Optional</Badge>
+              </div>
               <Input
-                ref={costInputRef}
-                id="cost"
+                ref={registerField(2)}
+                id="addQty"
                 type="number"
-                step="0.01"
-                value={formData.cost}
-                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                onKeyDown={handleCostKeyDown}
-                required
+                min="0"
+                placeholder="Enter quantity to add"
+                className="h-12 text-lg font-medium border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                value={formData.addQty}
+                onChange={(e) => setFormData({ ...formData, addQty: e.target.value })}
+                onKeyDown={handleAddQtyKeyDown}
               />
+              {formData.addQty && (
+                <div className="flex items-center justify-between px-1">
+                  <p className="text-sm font-medium text-emerald-700">
+                    Projected New Stock:
+                  </p>
+                  <p className="text-sm font-bold text-emerald-900">
+                    {product.warehouseStock + (parseInt(formData.addQty) || 0)} units
+                  </p>
+                </div>
+              )}
             </div>
-            <div>
-              <Label htmlFor="price">Price (GHS)</Label>
-              <Input
-                ref={priceInputRef}
-                id="price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                onKeyDown={handlePriceKeyDown}
-                required
-              />
-            </div>
-          </div>
+          </form>
+        </div>
 
-          {/* Add Stock Quantity */}
-          <div>
-            <Label htmlFor="addQty">Add to Stock</Label>
-            <Input
-              ref={addQtyInputRef}
-              id="addQty"
-              type="number"
-              min="0"
-              placeholder="Enter quantity to add"
-              value={formData.addQty}
-              onChange={(e) => setFormData({ ...formData, addQty: e.target.value })}
-              onKeyDown={handleAddQtyKeyDown}
-            />
-            {formData.addQty && (
-              <p className="text-xs text-slate-500 mt-1">
-                New Stock: {product.warehouseStock + (parseInt(formData.addQty) || 0)} units
-              </p>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button 
-              ref={cancelButtonRef}
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-              onKeyDown={(e) => {
-                if (e.key === 'Tab' && e.shiftKey) {
-                  e.preventDefault()
-                  focusField(2) // Move to addQty input
-                } else if (e.key === 'Enter') {
-                  handleClose()
-                }
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              ref={saveButtonRef}
-              type="submit" 
-              disabled={submitting}
-              onKeyDown={(e) => {
-                if (e.key === 'Tab' && e.shiftKey) {
-                  e.preventDefault()
-                  focusField(3) // Move to cancel button
-                }
-              }}
-            >
-              {submitting ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
-        </form>
+        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+          <Button 
+            ref={registerField(3)}
+            type="button" 
+            variant="outline" 
+            className="h-12 px-8 font-semibold border-slate-300 hover:bg-slate-100 rounded-xl transition-all"
+            onClick={handleClose}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab' && e.shiftKey) {
+                e.preventDefault()
+                focusField(2) // Move to addQty input
+              } else if (e.key === 'Enter') {
+                handleClose()
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            ref={registerField(4)}
+            type="submit" 
+            form="edit-product-form"
+            className="h-12 px-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md rounded-xl transition-all active:scale-95"
+            disabled={submitting}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab' && e.shiftKey) {
+                e.preventDefault()
+                focusField(3) // Move to cancel button
+              }
+            }}
+          >
+            {submitting ? 'Saving...' : 'Update Product'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

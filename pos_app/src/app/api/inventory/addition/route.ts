@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 2. Create the InventoryAddition record
-      return await tx.inventoryAddition.create({
+      const addition = await tx.inventoryAddition.create({
         data: {
           additionId: additionId,
           referenceId: savedReferenceId,
@@ -137,6 +137,47 @@ export async function POST(request: NextRequest) {
           items: true
         }
       })
+
+      // 3. Accounting Entries
+      // Debit Inventory (1030), Credit Accounts Payable (2010)
+      const inventoryAccount = await tx.account.findUnique({ where: { code: '1030' } })
+      const apAccount = await tx.account.findUnique({ where: { code: '2010' } })
+
+      if (inventoryAccount && apAccount && totalCost > 0) {
+        // Generate entry number
+        const lastEntry = await tx.journalEntry.findFirst({
+          orderBy: { entryNumber: 'desc' }
+        })
+        const lastNum = lastEntry ? parseInt(lastEntry.entryNumber.replace('JE', '')) : 0
+        const entryNumber = `JE${(lastNum + 1).toString().padStart(6, '0')}`
+
+        await tx.journalEntry.create({
+          data: {
+            entryNumber,
+            date: new Date(),
+            description: `Inventory addition #${additionId} (Ref: ${savedReferenceId})`,
+            isPosted: true,
+            lines: {
+              create: [
+                { accountId: inventoryAccount.id, description: `Stock increase`, debit: totalCost, credit: 0 },
+                { accountId: apAccount.id, description: `Payable for stock`, debit: 0, credit: totalCost },
+              ]
+            }
+          }
+        })
+
+        // Update balances
+        await tx.account.update({
+          where: { id: inventoryAccount.id },
+          data: { balance: { increment: totalCost } }
+        })
+        await tx.account.update({
+          where: { id: apAccount.id },
+          data: { balance: { increment: totalCost } }
+        })
+      }
+
+      return addition
     })
 
     return NextResponse.json(result, { status: 201 })

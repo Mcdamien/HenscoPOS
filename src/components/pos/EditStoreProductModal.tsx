@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { handleIntegerKeyDown, handleNumberKeyDown } from '@/lib/utils'
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
 
 interface Product {
   id: string
@@ -55,6 +57,12 @@ export default function EditStoreProductModal({
     reason: ''
   })
   const [submitting, setSubmitting] = useState(false)
+
+  // Keyboard navigation hook
+  const { registerField, handleKeyDown, focusField } = useKeyboardNavigation({
+    fieldCount: 7,
+    onEnterSubmit: () => {} // Handled by form submit
+  })
 
   // Reset form when product changes
   useEffect(() => {
@@ -127,6 +135,13 @@ export default function EditStoreProductModal({
     onClose()
   }
 
+  // Focus qty field when modal opens
+  useEffect(() => {
+    if (isOpen && product) {
+      setTimeout(() => focusField(1), 100)
+    }
+  }, [isOpen, product, focusField])
+
   if (!product || !storeInventory) return null
 
   const currentStock = storeInventory.stock
@@ -134,149 +149,215 @@ export default function EditStoreProductModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Store className="w-5 h-5" />
+      <DialogContent className="max-w-2xl h-[85vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+            <Store className="w-6 h-6 text-emerald-600" />
             Request Inventory Change
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Product Info - Read Only */}
-          <div className="bg-slate-50 p-3 rounded-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <Package className="w-4 h-4 text-slate-500" />
-              <span className="font-medium">{product.name}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-slate-500">Item ID:</span>
-                <span className="ml-2 font-medium">#{product.itemId}</span>
+        <div className="flex-1 overflow-y-auto p-6">
+          <form id="edit-store-product-form" onSubmit={handleSubmit} className="space-y-6">
+            {/* Context Header */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <Package className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm font-bold text-slate-700">Product Info</span>
+                </div>
+                <h3 className="text-base font-bold text-slate-900 truncate">{product.name}</h3>
+                <p className="text-xs font-medium text-slate-500">ID: #{product.itemId}</p>
+                <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-xs font-semibold text-slate-400 uppercase">Warehouse</span>
+                  <span className="text-sm font-bold text-slate-900">{warehouseStock} units</span>
+                </div>
               </div>
-              <div>
-                <span className="text-slate-500">Current Stock:</span>
-                <span className="ml-2 font-medium">{currentStock} units</span>
+
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <Store className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm font-bold text-emerald-700">Store Context</span>
+                </div>
+                <h3 className="text-base font-bold text-emerald-900 truncate">{storeInventory.storeName}</h3>
+                <p className="text-xs font-medium text-emerald-600">Active Session</p>
+                <div className="mt-2 pt-2 border-t border-emerald-100 flex justify-between items-center">
+                  <span className="text-xs font-semibold text-emerald-400 uppercase">Local Stock</span>
+                  <span className="text-sm font-bold text-emerald-900">{currentStock} units</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Store Info */}
-          <div className="bg-blue-50 p-3 rounded-xl flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Store className="w-4 h-4 text-blue-500" />
-              <span className="text-sm text-blue-700">{storeInventory.storeName}</span>
+            {/* Change Type Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-bold text-slate-700">Action Type</Label>
+              <div className="flex gap-2">
+                {['add', 'remove', 'adjust'].map((type, idx) => (
+                  <Button
+                    key={type}
+                    type="button"
+                    variant={formData.changeType === type ? 'default' : 'outline'}
+                    className={cn(
+                      "flex-1 h-12 capitalize font-bold rounded-xl transition-all",
+                      formData.changeType === type 
+                        ? (type === 'add' ? 'bg-emerald-600 hover:bg-emerald-700' : type === 'remove' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-slate-800 hover:bg-slate-900')
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    )}
+                    onClick={() => setFormData({ ...formData, changeType: type })}
+                  >
+                    {type}
+                  </Button>
+                ))}
+              </div>
             </div>
-            <Badge variant="outline" className="bg-blue-100 text-blue-700">
-              {warehouseStock} in Warehouse
-            </Badge>
-          </div>
 
-          {/* Change Type */}
-          <div>
-            <Label>Change Type</Label>
-            <div className="flex gap-2 mt-2">
-              {['add', 'remove', 'adjust'].map((type) => (
-                <Button
-                  key={type}
-                  type="button"
-                  variant={formData.changeType === type ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-1 capitalize"
-                  onClick={() => setFormData({ ...formData, changeType: type })}
-                >
-                  {type}
-                </Button>
-              ))}
+            {/* Quantity and Metrics */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="qty" className="text-sm font-bold text-slate-700">
+                  {formData.changeType === 'add' && 'Quantity to Request (from Warehouse)'}
+                  {formData.changeType === 'remove' && 'Quantity to Return/Remove'}
+                  {formData.changeType === 'adjust' && 'New Stock Level Target'}
+                </Label>
+                <Input
+                  ref={registerField(1)}
+                  id="qty"
+                  type="number"
+                  min="0"
+                  placeholder="Enter quantity"
+                  className="h-14 text-xl font-bold border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                  value={formData.qty}
+                  onChange={(e) => setFormData({ ...formData, qty: e.target.value })}
+                  onKeyDown={(e) => {
+                    handleKeyDown(e, 1)
+                    handleIntegerKeyDown(e)
+                  }}
+                  required={formData.changeType !== 'adjust'}
+                />
+              </div>
+
+              {formData.qty && (
+                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "w-2 h-2 rounded-full",
+                      formData.changeType === 'add' ? "bg-emerald-500" : "bg-orange-500"
+                    )} />
+                    <span className="text-sm font-medium text-slate-600">Expected Final Stock</span>
+                  </div>
+                  <span className="text-lg font-black text-slate-900">
+                    {formData.changeType === 'adjust' 
+                      ? formData.qty 
+                      : formData.changeType === 'add'
+                      ? currentStock + (parseInt(formData.qty) || 0)
+                      : currentStock - (parseInt(formData.qty) || 0)
+                    } units
+                  </span>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Quantity */}
-          <div>
-            <Label htmlFor="qty">
-              {formData.changeType === 'add' && 'Quantity to Add (from Warehouse)'}
-              {formData.changeType === 'remove' && 'Quantity to Remove'}
-              {formData.changeType === 'adjust' && 'New Stock Level'}
-            </Label>
-            <Input
-              id="qty"
-              type="number"
-              min="0"
-              placeholder="Enter quantity"
-              value={formData.qty}
-              onChange={(e) => setFormData({ ...formData, qty: e.target.value })}
-              onKeyDown={handleIntegerKeyDown}
-              required={formData.changeType !== 'adjust'}
-            />
-            {formData.qty && (
-              <p className="text-xs text-slate-500 mt-1">
-                New Stock: {
-                  formData.changeType === 'adjust' 
-                    ? formData.qty 
-                    : formData.changeType === 'add'
-                    ? currentStock + (parseInt(formData.qty) || 0)
-                    : currentStock - (parseInt(formData.qty) || 0)
-                } units
-              </p>
-            )}
-          </div>
+            {/* Pricing Adjustments */}
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="newCost" className="text-sm font-bold text-slate-700 text-slate-500">New Cost (Optional)</Label>
+                <Input
+                  ref={registerField(2)}
+                  id="newCost"
+                  type="number"
+                  step="0.01"
+                  placeholder={`Current: ${product.cost}`}
+                  className="h-12 border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                  value={formData.newCost}
+                  onChange={(e) => setFormData({ ...formData, newCost: e.target.value })}
+                  onKeyDown={(e) => {
+                    handleKeyDown(e, 2)
+                    handleNumberKeyDown(e)
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="newPrice" className="text-sm font-bold text-slate-700 text-slate-500">New Price (Optional)</Label>
+                <Input
+                  ref={registerField(3)}
+                  id="newPrice"
+                  type="number"
+                  step="0.01"
+                  placeholder={`Current: ${product.price}`}
+                  className="h-12 border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                  value={formData.newPrice}
+                  onChange={(e) => setFormData({ ...formData, newPrice: e.target.value })}
+                  onKeyDown={(e) => {
+                    handleKeyDown(e, 3)
+                    handleNumberKeyDown(e)
+                  }}
+                />
+              </div>
+            </div>
 
-          {/* Price Fields - Optional */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="newCost">New Cost (Optional)</Label>
+            {/* Reason */}
+            <div className="space-y-2">
+              <Label htmlFor="reason" className="text-sm font-bold text-slate-700">Reason for Change</Label>
               <Input
-                id="newCost"
-                type="number"
-                step="0.01"
-                placeholder="Keep current"
-                value={formData.newCost}
-                onChange={(e) => setFormData({ ...formData, newCost: e.target.value })}
-                onKeyDown={handleNumberKeyDown}
+                ref={registerField(4)}
+                id="reason"
+                placeholder="e.g., Damaged goods, stock count correction, price update"
+                className="h-12 border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                value={formData.reason}
+                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                onKeyDown={(e) => handleKeyDown(e, 4)}
               />
             </div>
-            <div>
-              <Label htmlFor="newPrice">New Price (Optional)</Label>
-              <Input
-                id="newPrice"
-                type="number"
-                step="0.01"
-                placeholder="Keep current"
-                value={formData.newPrice}
-                onChange={(e) => setFormData({ ...formData, newPrice: e.target.value })}
-                onKeyDown={handleNumberKeyDown}
-              />
+
+            {/* Approval Warning */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
+              <div className="w-10 h-10 bg-amber-100 rounded-xl flex-shrink-0 flex items-center justify-center">
+                <span className="text-amber-700 font-bold">!</span>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-amber-900">Approval Required</p>
+                <p className="text-xs text-amber-700 leading-relaxed mt-0.5">
+                  This request will be sent to the Warehouse Manager. Inventory will not be updated until the request is approved.
+                </p>
+              </div>
             </div>
-          </div>
+          </form>
+        </div>
 
-          {/* Reason */}
-          <div>
-            <Label htmlFor="reason">Reason for Change</Label>
-            <Input
-              id="reason"
-              placeholder="e.g., Stock count correction, price update"
-              value={formData.reason}
-              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-            />
-          </div>
-
-          {/* Notice */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-            <p className="text-xs text-amber-700">
-              <strong>Note:</strong> This change requires warehouse approval before it will be applied to your store inventory.
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? 'Submitting...' : 'Submit for Approval'}
-            </Button>
-          </div>
-        </form>
+        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+          <Button 
+            ref={registerField(5)}
+            type="button" 
+            variant="outline" 
+            className="h-12 px-8 font-semibold border-slate-300 rounded-xl transition-all hover:bg-slate-100"
+            onClick={handleClose}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab' && e.shiftKey) {
+                e.preventDefault()
+                focusField(4)
+              } else if (e.key === 'Enter') {
+                handleClose()
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            ref={registerField(6)}
+            type="submit" 
+            form="edit-store-product-form"
+            className="h-12 px-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md rounded-xl transition-all active:scale-95"
+            disabled={submitting}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab' && e.shiftKey) {
+                e.preventDefault()
+                focusField(5)
+              }
+            }}
+          >
+            {submitting ? 'Submitting...' : 'Submit Request'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

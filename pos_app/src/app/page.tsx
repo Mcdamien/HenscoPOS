@@ -50,21 +50,21 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="h-screen max-h-screen flex bg-slate-50 overflow-hidden fixed inset-0">
       {/* Sidebar */}
-      <nav className="w-64 bg-white border-r border-slate-200 flex flex-col z-10">
-        <div className="p-6 flex items-center gap-3 border-b border-slate-200">
+      <nav className="w-64 bg-white border-r border-slate-200 flex flex-col z-10 shrink-0">
+        <div className="p-6 flex items-center gap-3 border-b border-slate-200 shrink-0">
           <span className="text-xl font-bold text-emerald-600">Yames App</span>
         </div>
         
-        <div className="flex-1 p-4 flex flex-col gap-2">
+        <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all shrink-0 ${
                   activeView === item.id
                     ? 'bg-emerald-50 text-emerald-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-emerald-600'
@@ -77,7 +77,7 @@ export default function Home() {
           })}
         </div>
 
-        <div className="p-4 border-t border-slate-200">
+        <div className="p-4 border-t border-slate-200 shrink-0">
           <div className="mt-2">
             <p className="text-center text-sm text-slate-400">By McDamien © 2026</p>
           </div>
@@ -85,24 +85,26 @@ export default function Home() {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 z-20">
           <h1 className="text-xl font-semibold text-slate-900">{getPageTitle()}</h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-600">Admin User</span>
             <Avatar>
               <AvatarFallback className="bg-emerald-600 text-white font-semibold">AU</AvatarFallback>
             </Avatar>
-            <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-all">
-              <LogOut className="w-4 h-4" />
-              Logout
+            <button 
+              className="p-2 rounded-full text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
           {activeView === 'dashboard' && <DashboardView />}
           {activeView === 'warehouse' && (
             <WarehouseView 
@@ -119,11 +121,13 @@ export default function Home() {
             />
           )}
           {activeView === 'pos' && (
-            <POSTerminalView 
-              stores={stores} 
-              currentStore={currentStore} 
-              onStoreChange={setCurrentStore} 
-            />
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <POSTerminalView 
+                stores={stores} 
+                currentStore={currentStore} 
+                onStoreChange={setCurrentStore} 
+              />
+            </div>
           )}
           {activeView === 'accounting' && <AccountingView />}
         </div>

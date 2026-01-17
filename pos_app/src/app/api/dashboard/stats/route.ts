@@ -6,7 +6,12 @@ export async function GET() {
   try {
     const now = new Date()
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()))
+    
+    // Create separate date objects for different ranges to avoid side effects
+    const startOfWeek = new Date(now)
+    startOfWeek.setDate(now.getDate() - now.getDay())
+    startOfWeek.setHours(0, 0, 0, 0)
+    
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const startOfYear = new Date(now.getFullYear(), 0, 1)
 
@@ -57,6 +62,7 @@ export async function GET() {
     ])
 
     // Calculate profit (subtotal - itemCosts) using raw query for efficiency
+    // We filter by allowed shops in the raw SQL
     const shopsPlaceholder = ALLOWED_SHOPS.map(s => `'${s.replace(/'/g, "''")}'`).join(',')
     const profitResult = await db.$queryRawUnsafe<[{ netProfit: number }][]>(`
       SELECT SUM((ti.itemPrice - ti.itemCost) * ti.qty) as netProfit 
@@ -67,8 +73,12 @@ export async function GET() {
     `)
     const totalProfit = (profitResult as any)[0]?.netProfit || 0
 
-    // Count low stock and out of stock items efficiently
-    const [warehouseOutCount, warehouseLowCount, shopInventoryStats] = await Promise.all([
+    // Count low stock and out of stock items
+    // Filter inventory by allowed stores
+    
+    const [productCount, filteredStoreCount, warehouseOutCount, warehouseLowCount, shopInventoryStats] = await Promise.all([
+      db.product.count(),
+      db.store.count({ where: { name: { in: [...ALLOWED_SHOPS] } } }),
       db.product.count({ where: { warehouseStock: 0 } }),
       db.product.count({ where: { warehouseStock: { gt: 0, lt: 20 } } }),
       db.inventory.aggregate({
@@ -80,6 +90,7 @@ export async function GET() {
       })
     ])
 
+    // Get all shop inventory records that are actually low stock for allowed stores
     const shopLowStockCount = await db.inventory.count({
       where: { 
         stock: { gt: 0, lt: 20 },
@@ -87,10 +98,13 @@ export async function GET() {
       }
     })
 
-    const productCount = await db.product.count()
-    const filteredStoreCount = await db.store.count({ where: { name: { in: [...ALLOWED_SHOPS] } } })
+    // Total possible shop stock positions (every product in every allowed store)
     const totalShopPositions = productCount * filteredStoreCount
+    
+    // Items that have > 0 stock in allowed shops
     const shopInStockCount = shopInventoryStats._count.id || 0
+    
+    // Out of stock in allowed shops = Total positions - In stock positions
     const shopOutOfStockCount = totalShopPositions - shopInStockCount
 
     const totalOutOfStock = warehouseOutCount + shopOutOfStockCount

@@ -150,7 +150,7 @@ async function main() {
   // ============ CREATE STORES ============
   console.log('\nCreating stores...');
 
-  const stores = ['Klagon Shop', 'Teshie Shop', 'Cape Coast Shop'];
+  const stores = ['Klagon Shop', 'Teshie Shop', 'Online shop'];
 
   for (const store of stores) {
     await prisma.store.upsert({
@@ -172,4 +172,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

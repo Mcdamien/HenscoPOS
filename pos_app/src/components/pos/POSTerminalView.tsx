@@ -443,10 +443,11 @@ export default function POSTerminalView({ stores, currentStore, onStoreChange }:
   }, [])
 
   return (
-    <div className="p-6 h-full flex gap-6">
+    <div className="flex-1 flex min-h-0 overflow-hidden p-4 gap-4 bg-slate-50">
       {/* Products Section */}
-      <div className="flex-1 flex flex-col gap-4">
-        <div className="flex gap-3">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden gap-4">
+        {/* Search and Store Selection */}
+        <div className="flex gap-3 shrink-0">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
@@ -455,13 +456,13 @@ export default function POSTerminalView({ stores, currentStore, onStoreChange }:
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              className="pl-10"
+              className="pl-10 bg-white"
             />
           </div>
           <Select value={currentStore} onValueChange={onStoreChange}>
             <SelectTrigger 
               ref={storeSelectRef}
-              className="w-64"
+              className="w-64 bg-white"
               onKeyDown={handleStoreSelectKeyDown}
             >
               <SelectValue placeholder="Select store" />
@@ -476,43 +477,46 @@ export default function POSTerminalView({ stores, currentStore, onStoreChange }:
           </Select>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="text-center text-slate-500 py-8">Loading...</div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="text-center text-slate-500 py-8">
-              No products found matching "{debouncedSearchTerm}"
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredProducts.map((product) => (
-                <Card
-                  key={product.id}
-                  className="p-4 cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition-all"
-                  onClick={() => addToCart(product)}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      addToCart(product)
-                    }
-                  }}
-                >
-                  <div className="text-center">
-                    <Badge variant="outline" className="mb-2">#{product.itemId}</Badge>
-                    <p className="font-medium text-sm mb-2">{product.name}</p>
-                    <p className="text-lg font-bold text-emerald-600">{formatCurrency(product.price)}</p>
-                    <p className="text-xs text-slate-500 mt-1">{product.storeStock} in stock</p>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Scrollable Item Cards Container */}
+        <Card className="flex-1 flex flex-col overflow-hidden bg-white border-slate-200">
+          <div className="flex-1 overflow-y-auto p-4">
+            {loading ? (
+              <div className="text-center text-slate-500 py-8">Loading...</div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">
+                No products found matching "{debouncedSearchTerm}"
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                {filteredProducts.map((product) => (
+                  <Card
+                    key={product.id}
+                    className="p-4 cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition-all border border-slate-100 shadow-sm"
+                    onClick={() => addToCart(product)}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        addToCart(product)
+                      }
+                    }}
+                  >
+                    <div className="text-center">
+                      <Badge variant="outline" className="mb-2">#{product.itemId}</Badge>
+                      <p className="font-medium text-sm mb-2 h-10 overflow-hidden line-clamp-2">{product.name}</p>
+                      <p className="text-lg font-bold text-emerald-600">{formatCurrency(product.price)}</p>
+                      <p className="text-xs text-slate-500 mt-1">{product.storeStock} in stock</p>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
 
-      {/* Cart Section */}
-      <Card className="w-96 flex flex-col h-[calc(100vh-6rem)]">
+      {/* Fixed Cart Section */}
+      <Card className="w-96 flex flex-col h-full overflow-hidden shrink-0 bg-white border-l">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <h3 className="font-semibold">Current Order</h3>
           <Button variant="outline" size="sm" onClick={clearCart}>
