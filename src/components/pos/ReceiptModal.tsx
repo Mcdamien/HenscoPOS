@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { formatDateDDMMYYYY } from '@/lib/utils'
@@ -68,37 +69,37 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0">
-        <DialogHeader className="p-4 border-b bg-slate-50/50 flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Eye className="w-4 h-4 text-emerald-600" />
-            Print Preview - Transaction Receipt
+      <DialogContent className="max-w-md h-[85vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b bg-white shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <Eye className="w-5 h-5 text-emerald-600" />
+            Print Preview
           </DialogTitle>
         </DialogHeader>
         
         {/* Scrollable receipt content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="font-mono receipt-content bg-white p-4 border rounded-xl shadow-sm">
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+          <div className="font-mono receipt-content bg-white p-6 border rounded-xl shadow-md mx-auto max-w-[320px]">
             {/* Header - Uses Arnel Rounded equivalent (Quicksand) */}
-            <div className="text-center mb-4 border-b-2 border-dashed border-slate-200 pb-4 font-[var(--font-quicksand)]">
-              <h2 className="text-xl font-bold text-emerald-600 mb-1 tracking-tight">Yames App</h2>
+            <div className="text-center mb-6 border-b-2 border-dashed border-slate-200 pb-6 font-[var(--font-quicksand)]">
+              <h2 className="text-2xl font-bold text-emerald-600 mb-1 tracking-tight">Hensco POS</h2>
               <p className="font-bold text-slate-800 uppercase text-xs tracking-widest">{transaction.store}</p>
               <p className="text-[10px] text-slate-400 mt-1 uppercase">Official Transaction Receipt</p>
-              <div className="text-[10px] text-slate-500 mt-3 space-y-0.5">
-                <p>REF: #TXN-{transaction.id.toString().padStart(6, '0')}</p>
+              <div className="text-[10px] text-slate-500 mt-4 space-y-1">
+                <p className="font-bold">REF: #TXN-{transaction.id.toString().padStart(6, '0')}</p>
                 <p>DATE: {formatDateDDMMYYYY(transaction.date)} @ {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
             </div>
 
             {/* Items - Uses Geo Sans Light equivalent (Nunito) */}
-            <div className="space-y-2 mb-4 font-[var(--font-nunito)]">
+            <div className="space-y-3 mb-6 font-[var(--font-nunito)]">
               {transaction.items.map((item, index) => (
                 <div key={index} className="flex justify-between text-xs items-start">
-                  <div className="flex-1">
+                  <div className="flex-1 pr-4">
                     <p className="font-bold text-slate-800">{item.itemName}</p>
-                    <p className="text-slate-400">{item.qty} x {formatCurrency(item.itemPrice)}</p>
+                    <p className="text-slate-400 text-[10px]">{item.qty} x {formatCurrency(item.itemPrice)}</p>
                   </div>
-                  <p className="font-bold text-slate-800 ml-4">
+                  <p className="font-black text-slate-900 ml-auto">
                     {formatCurrency(item.itemPrice * item.qty)}
                   </p>
                 </div>
@@ -106,7 +107,7 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
             </div>
 
             {/* Totals - Uses Geo Sans Light equivalent (Nunito) */}
-            <div className="pt-4 border-t-2 border-dashed border-slate-200 space-y-1.5 font-[var(--font-nunito)]">
+            <div className="pt-4 border-t-2 border-dashed border-slate-200 space-y-2 font-[var(--font-nunito)]">
               <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <span>Subtotal</span>
                 <span>{formatCurrency(transaction.subtotal)}</span>
@@ -115,37 +116,36 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
                 <span>VAT (12.5%)</span>
                 <span>{formatCurrency(transaction.tax)}</span>
               </div>
-              <div className="flex justify-between text-base font-black mt-2 pt-2 border-t border-slate-100">
+              <div className="flex justify-between text-lg font-black mt-3 pt-3 border-t border-slate-100">
                 <span className="text-slate-900">TOTAL</span>
                 <span className="text-emerald-600">{formatCurrency(transaction.total)}</span>
               </div>
             </div>
 
             {/* Footer - Uses Chopin equivalent (Playfair Display) */}
-            <div className="text-center mt-6 pt-4 border-t border-slate-100 font-[var(--font-playfair)]">
-              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Thank you for your business!</p>
-              <p className="text-[8px] text-slate-300 mt-2 uppercase tracking-tighter italic">Goods sold are non-returnable unless defective.</p>
+            <div className="text-center mt-8 pt-6 border-t border-slate-100 font-[var(--font-playfair)]">
+              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Thank you for your business!</p>
+              <p className="text-[9px] text-slate-300 mt-2 uppercase tracking-tighter italic">Goods sold are non-returnable unless defective.</p>
             </div>
           </div>
         </div>
 
-        {/* Fixed action buttons - always visible */}
-        <div className="p-6 pt-4 border-t bg-white flex-shrink-0">
-          <div className="grid grid-cols-2 gap-3">
+        <DialogFooter className="px-6 py-4 border-t bg-white shrink-0">
+          <div className="grid grid-cols-2 gap-3 w-full">
             <Button 
               ref={printButtonRef}
               onClick={handlePrint} 
-              className="bg-emerald-600 hover:bg-emerald-700 h-11 font-bold shadow-md shadow-emerald-100"
+              className="bg-emerald-600 hover:bg-emerald-700 h-11 font-bold shadow-sm"
             >
               <Printer className="w-4 h-4 mr-2" />
-              PRINT
+              PRINT RECEIPT
             </Button>
-            <Button variant="outline" onClick={handleClose} className="border-slate-200 h-11 font-bold text-slate-600 hover:bg-slate-50">
+            <Button variant="outline" onClick={handleClose} className="h-11 font-bold text-slate-600">
               <X className="w-4 h-4 mr-2" />
               CLOSE
             </Button>
           </div>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

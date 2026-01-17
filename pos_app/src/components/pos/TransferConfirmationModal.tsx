@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { formatDateDDMMYYYY } from '@/lib/utils'
 
 interface TransferItem {
   id: string
@@ -137,7 +138,7 @@ export default function TransferConfirmationModal({
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString()
+    return formatDateDDMMYYYY(dateString)
   }
 
   // Group transfers by ID for display

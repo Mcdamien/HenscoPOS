@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -322,7 +323,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
           </form>
         </div>
 
-        <div className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
           <Button 
             ref={registerField(4)}
             type="button" 
@@ -355,7 +356,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
           >
             {submitting ? 'Adding...' : 'Save Product'}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

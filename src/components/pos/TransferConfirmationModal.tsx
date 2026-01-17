@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Package, Check, XCircle, Clock, Truck } from 'lucide-react'
+import { X, Package, Check, XCircle, Clock, Truck, Loader2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -147,8 +147,8 @@ export default function TransferConfirmationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b bg-white shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Truck className="w-5 h-5 text-amber-500" />
             Pending Stock Transfers
@@ -158,13 +158,13 @@ export default function TransferConfirmationModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30">
           {localTransfers.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
                 <Check className="w-8 h-8 text-emerald-600" />
               </div>
-              <p className="text-slate-600 font-medium">All caught up!</p>
+              <p className="text-slate-600 font-medium text-lg">All caught up!</p>
               <p className="text-sm text-slate-500">No pending transfers to confirm</p>
             </div>
           ) : (
@@ -172,44 +172,53 @@ export default function TransferConfirmationModal({
               {localTransfers.map((transfer) => (
                 <div 
                   key={transfer.id} 
-                  className="border rounded-lg p-4 bg-white hover:bg-slate-50 transition-colors shadow-sm"
+                  className="border rounded-xl p-5 bg-white hover:border-amber-200 transition-all shadow-sm"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-slate-500" />
-                      <span className="font-medium">Transfer #{transfer.transferId}</span>
-                      <Badge className="bg-amber-100 text-amber-700">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Pending Confirmation
-                      </Badge>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100">
+                        <Package className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">Transfer #{transfer.transferId}</span>
+                          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none text-[10px] px-2 py-0">
+                            <Clock className="w-3 h-3 mr-1" />
+                            PENDING
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Created on {formatDate(transfer.createdAt)}
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-xs text-slate-500">
-                      {formatDate(transfer.createdAt)}
-                    </span>
                   </div>
 
-                  <div className="text-sm mb-3">
-                    <span className="text-slate-600">From: </span>
-                    <span className="font-medium">{transfer.fromStore || 'Warehouse'}</span>
-                    <span className="mx-2 text-slate-400">→</span>
-                    <span className="text-slate-600">To: </span>
-                    <span className="font-medium">{transfer.toStore}</span>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Source</p>
+                      <p className="font-bold text-slate-700">{transfer.fromStore || 'Warehouse'}</p>
+                    </div>
+                    <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Destination</p>
+                      <p className="font-bold text-emerald-700">{transfer.toStore}</p>
+                    </div>
                   </div>
 
                   {/* Items Table */}
-                  <div className="border rounded-md overflow-hidden mb-3">
+                  <div className="border rounded-lg overflow-hidden mb-4 shadow-sm">
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>
-                          <TableHead>Item Name</TableHead>
-                          <TableHead className="text-right w-24">Quantity</TableHead>
+                          <TableHead className="text-xs font-bold text-slate-500">ITEM NAME</TableHead>
+                          <TableHead className="text-right w-32 text-xs font-bold text-slate-500">QUANTITY</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {transfer.items.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.itemName}</TableCell>
-                            <TableCell className="text-right font-medium">
+                          <TableRow key={item.id} className="hover:bg-slate-50/50">
+                            <TableCell className="font-medium text-slate-700">{item.itemName}</TableCell>
+                            <TableCell className="text-right font-black text-slate-900">
                               {item.qty} units
                             </TableCell>
                           </TableRow>
@@ -218,41 +227,41 @@ export default function TransferConfirmationModal({
                     </Table>
                   </div>
 
-                  <div className="text-xs text-slate-500 mb-3">
-                    Total Items: <span className="font-medium">{transfer.items.length}</span> | 
-                    Total Units: <span className="font-medium">{getTotalItems(transfer.items)}</span>
-                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                      {transfer.items.length} items | {getTotalItems(transfer.items)} total units
+                    </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-3 border-t">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
-                      onClick={() => handleCancel(transfer)}
-                      disabled={processingId === transfer.id}
-                    >
-                      <XCircle className="w-4 h-4 mr-1" />
-                      Cancel Transfer
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 ml-auto"
-                      onClick={() => handleConfirm(transfer)}
-                      disabled={processingId === transfer.id}
-                    >
-                      {processingId === transfer.id ? (
-                        <>
-                          <Clock className="w-4 h-4 mr-1 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-4 h-4 mr-1" />
-                          Confirm Receipt
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleCancel(transfer)}
+                        disabled={processingId === transfer.id}
+                      >
+                        <XCircle className="w-4 h-4 mr-1.5" />
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 h-9 px-4 shadow-sm"
+                        onClick={() => handleConfirm(transfer)}
+                        disabled={processingId === transfer.id}
+                      >
+                        {processingId === transfer.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4 mr-2" />
+                            Confirm Receipt
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -260,13 +269,12 @@ export default function TransferConfirmationModal({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t bg-slate-50 shrink-0">
           <div className="flex justify-between items-center w-full">
-            <div className="text-sm text-slate-600">
+            <div className="text-sm font-medium text-slate-500">
               {localTransfers.length} transfer{localTransfers.length !== 1 ? 's' : ''} awaiting confirmation
             </div>
-            <Button variant="outline" size="sm" onClick={onClose}>
-              <X className="w-4 h-4 mr-2" />
+            <Button variant="outline" onClick={onClose} className="px-6">
               Close
             </Button>
           </div>

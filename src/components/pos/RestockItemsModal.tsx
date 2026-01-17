@@ -1,12 +1,26 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Package, X, Check, Search } from 'lucide-react'
-import { Card } from '@/components/ui/card'
+import { Package, X, Check, Search, Filter, Building2 } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface RestockItem {
   id: string
@@ -16,7 +30,7 @@ interface RestockItem {
   price: number
   currentStock: number
   restockQty: number
-  shop: string // Added shop field
+  shop: string
 }
 
 interface RestockItemsModalProps {
@@ -45,7 +59,6 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }: RestockItemsModalProps) {
   const [items, setItems] = useState<RestockItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [restockingId, setRestockingId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
   const [filter, setFilter] = useState<'all' | 'out' | 'low'>('all')
@@ -99,42 +112,12 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
     }
   }
 
-  const handleRestock = async (item: RestockItem) => {
-    setRestockingId(item.id)
-    try {
-      const response = await fetch('/api/products/restock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: item.id,
-          cost: item.cost,
-          price: item.price,
-          qty: item.restockQty
-        })
-      })
-
-      if (response.ok) {
-        // Remove the restocked item from the list
-        setItems(prev => prev.filter(i => i.id !== item.id))
-        onRestockComplete()
-      }
-    } catch (error) {
-      console.error('Failed to restock:', error)
-    } finally {
-      setRestockingId(null)
-    }
-  }
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-GH', {
       style: 'currency',
       currency: 'GHS',
       currencyDisplay: 'code'
     }).format(amount)
-  }
-
-  const handleStoreChange = (store: string) => {
-    setSelectedStore(store)
   }
 
   const filteredItems = useMemo(() => {
@@ -151,135 +134,135 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
   const outOfStockCount = useMemo(() => items.filter(i => i.currentStock === 0).length, [items])
   const lowStockCount = useMemo(() => items.filter(i => i.currentStock > 0).length, [items])
 
-  const totalRestockCost = useMemo(() => 
-    filteredItems.reduce((sum, item) => sum + (item.cost * item.restockQty), 0),
-    [filteredItems]
-  )
-
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-8 py-4 border-b">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100">
-              <Package className="w-5 h-5 text-amber-600" />
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100">
+                <Package className="w-5 h-5 text-amber-600" />
+              </div>
+              <DialogTitle className="text-xl">Items Needing Restock</DialogTitle>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold">Items Needing Restock</h2>
-              <p className="text-sm text-slate-500">
-                {outOfStockCount > 0 && (
-                  <Badge variant="destructive" className="mr-2">
-                    {outOfStockCount} Out of Stock
-                  </Badge>
-                )}
-                {lowStockCount > 0 && (
-                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                    {lowStockCount} Low Stock
-                  </Badge>
-                )}
-              </p>
+            <div className="flex items-center gap-2 mr-8">
+              {outOfStockCount > 0 && (
+                <Badge variant="destructive" className="animate-pulse">
+                  {outOfStockCount} Out of Stock
+                </Badge>
+              )}
+              {lowStockCount > 0 && (
+                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                  {lowStockCount} Low Stock
+                </Badge>
+              )}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        </DialogHeader>
 
-        {/* Filters */}
-        <div className="px-8 py-4 border-b bg-slate-50">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+        <div className="bg-slate-50 border-b px-6 py-4 shrink-0">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="relative flex-1 w-full max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 ref={searchInputRef}
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('all')}
-              >
-                All ({items.length})
-              </Button>
-              <Button
-                variant={filter === 'out' ? 'destructive' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('out')}
-              >
-                Out of Stock ({outOfStockCount})
-              </Button>
-              <Button
-                variant={filter === 'low' ? 'default' : 'outline'}
-                size="sm"
-                className={filter === 'low' ? 'bg-amber-600 hover:bg-amber-700' : ''}
-                onClick={() => setFilter('low')}
-              >
-                Low Stock ({lowStockCount})
-              </Button>
-            </div>
-            <div className="flex-1 max-w-xs">
-              <select
-                value={selectedStore}
-                onChange={(e) => handleStoreChange(e.target.value)}
-                className="w-full border rounded px-3 py-2 text-sm"
-              >
-                {stores.map((store) => (
-                  <option key={store} value={store}>{store}</option>
-                ))}
-              </select>
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex bg-white border rounded-lg p-1">
+                <Button
+                  variant={filter === 'all' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setFilter('all')}
+                  className="h-8 px-3 rounded-md"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={filter === 'out' ? 'destructive' : 'ghost'}
+                  size="sm"
+                  onClick={() => setFilter('out')}
+                  className={cn("h-8 px-3 rounded-md", filter === 'out' ? "" : "text-red-600")}
+                >
+                  Out
+                </Button>
+                <Button
+                  variant={filter === 'low' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setFilter('low')}
+                  className={cn("h-8 px-3 rounded-md", filter === 'low' ? "bg-amber-600 hover:bg-amber-700" : "text-amber-600")}
+                >
+                  Low
+                </Button>
+              </div>
+
+              <div className="min-w-[180px]">
+                <Select value={selectedStore} onValueChange={setSelectedStore}>
+                  <SelectTrigger className="h-10 bg-white">
+                    <SelectValue placeholder="Select Store" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map((store) => (
+                      <SelectItem key={store} value={store}>
+                        {store}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="flex-1 overflow-y-auto px-4">
+        <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">
-              Loading items...
+            <div className="flex flex-col items-center justify-center p-20 text-slate-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mb-4"></div>
+              <p>Fetching stock levels...</p>
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">
-              <Package className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-              <p>No items need restock</p>
+            <div className="flex flex-col items-center justify-center p-20 text-slate-400">
+              <Package className="w-12 h-12 mb-4 opacity-20" />
+              <p className="text-lg font-medium">All items are sufficiently stocked</p>
+              <p className="text-sm">Try changing filters or selecting another store</p>
             </div>
           ) : (
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                 <TableRow>
-                  <TableHead>Item ID</TableHead>
+                  <TableHead className="w-24">Item ID</TableHead>
                   <TableHead>Product Name</TableHead>
-                  <TableHead>Current Stock</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-center">Current Stock</TableHead>
                   <TableHead>Location</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">#{item.itemId}</TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-xs text-slate-500">{formatCurrency(item.price)}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={item.currentStock === 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}>
+                  <TableRow key={item.id} className="hover:bg-slate-50/50">
+                    <TableCell className="font-mono text-xs font-medium text-slate-500">#{item.itemId}</TableCell>
+                    <TableCell className="font-semibold text-slate-900">{item.name}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(item.price)}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={cn(
+                        "font-bold",
+                        item.currentStock === 0 
+                          ? 'bg-red-50 text-red-700 border-red-100' 
+                          : 'bg-amber-50 text-amber-700 border-amber-100'
+                      )}>
                         {item.currentStock} units
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      {item.shop}
+                    <TableCell className="text-sm text-slate-600 font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                        {item.shop}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -288,18 +271,17 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-8 py-4 border-t bg-slate-50 flex items-center justify-between">
-          <div className="text-sm text-slate-600">
-            Showing {filteredItems.length} of {items.length} items
+        <DialogFooter className="px-6 py-4 border-t bg-slate-50 shrink-0">
+          <div className="flex items-center justify-between w-full">
+            <p className="text-sm text-slate-500 font-medium">
+              Showing <span className="text-slate-900 font-bold">{filteredItems.length}</span> items
+            </p>
+            <Button variant="outline" onClick={onClose} className="px-8 shadow-sm">
+              Close
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            <X className="w-4 h-4 mr-1" />
-            Close
-          </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
-

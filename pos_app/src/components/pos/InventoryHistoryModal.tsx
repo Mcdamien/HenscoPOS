@@ -7,11 +7,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
+import { formatDateDDMMYYYY } from '@/lib/utils'
 
 interface InventoryAdditionItem {
   id: string
@@ -79,13 +81,7 @@ export default function InventoryHistoryModal({ isOpen, onClose, initialExpanded
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    return formatDateDDMMYYYY(dateString)
   }
 
   const formatCurrency = (amount: number) => {
@@ -98,15 +94,15 @@ export default function InventoryHistoryModal({ isOpen, onClose, initialExpanded
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-emerald-600" />
             Inventory Addition History
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 mt-4 pr-4">
+        <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="text-center py-8 text-slate-500">Loading history...</div>
           ) : additions.length === 0 ? (
@@ -182,7 +178,13 @@ export default function InventoryHistoryModal({ isOpen, onClose, initialExpanded
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
+
+        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+          <Button variant="outline" className="px-8" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

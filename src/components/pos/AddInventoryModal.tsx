@@ -278,8 +278,8 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between w-full">
             <div className="flex flex-col gap-1">
               <DialogTitle className="flex items-center gap-2 text-xl">
@@ -299,7 +299,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
           </div>
         </DialogHeader>
 
-        <div className="flex-1 flex flex-col min-h-0 p-6 space-y-6 overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
             <div className="md:col-span-2 space-y-4">
               <div className="border rounded-xl p-4 bg-slate-50/50 space-y-4">
@@ -511,7 +511,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
           </div>
         </div>
 
-        <DialogFooter className="bg-slate-50 border-t p-4 sm:flex-row flex-col gap-4">
+        <DialogFooter className="px-6 py-4 border-t bg-slate-50 shrink-0 sm:flex-row flex-col gap-4">
           <div className="flex items-center justify-between w-full">
             <div className="text-sm font-medium text-slate-500">
               {items.length} items ready for processing

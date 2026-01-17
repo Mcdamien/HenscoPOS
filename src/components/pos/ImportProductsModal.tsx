@@ -166,8 +166,8 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
             Import Products from Excel
@@ -251,16 +251,16 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
           {!results ? (
-            <div className="flex justify-end gap-3 w-full">
-              <Button variant="outline" onClick={handleClose} disabled={importing}>
+            <>
+              <Button variant="outline" className="px-8" onClick={handleClose} disabled={importing}>
                 Cancel
               </Button>
               <Button 
                 onClick={handleImport} 
                 disabled={!file || importing}
-                className="bg-emerald-600 hover:bg-emerald-700 min-w-[120px]"
+                className="bg-emerald-600 hover:bg-emerald-700 px-8"
               >
                 {importing ? (
                   <>
@@ -271,9 +271,9 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
                   'Start Import'
                 )}
               </Button>
-            </div>
+            </>
           ) : (
-            <Button onClick={handleClose} className="w-full">
+            <Button onClick={handleClose} className="px-12 bg-emerald-600 hover:bg-emerald-700">
               Done
             </Button>
           )}

@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { handleIntegerKeyDown } from '@/lib/utils'
+import { handleIntegerKeyDown, formatDateDDMMYYYY } from '@/lib/utils'
 
 interface Product {
   id: string
@@ -181,8 +181,8 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-7xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <DialogTitle className="flex items-center gap-2 text-xl">
@@ -192,7 +192,7 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
               <div className="flex items-center gap-3 text-xs font-medium">
                 <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                   <Calendar className="w-3.5 h-3.5" />
-                  {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {formatDateDDMMYYYY(new Date())}
                 </span>
                 {targetStore && (
                   <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
@@ -204,8 +204,8 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
           </div>
         </DialogHeader>
 
-        <div className="flex-1 flex flex-col min-h-0 p-6 space-y-6 overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
+        <div className="flex-1 flex flex-col min-h-0 py-6 space-y-6 overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0 px-6">
             <div>
               <Label htmlFor="targetStore">Destination Shop</Label>
               <Select 
@@ -331,7 +331,7 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
           </div>
         </div>
 
-        <DialogFooter className="bg-slate-50 border-t p-4 sm:flex-row flex-col gap-4">
+        <DialogFooter className="bg-slate-50 border-t p-4 sm:flex-row flex-col gap-4 shrink-0">
           <div className="flex items-center justify-between w-full">
             <div className="text-sm font-medium">
               <span className="text-slate-500">Selected:</span>

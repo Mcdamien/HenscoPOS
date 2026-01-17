@@ -1,10 +1,20 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { X, Building2 } from 'lucide-react'
+import { X, Building2, Package, Calculator } from 'lucide-react'
 import { handleIntegerKeyDown } from '@/lib/utils'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface Product {
   id: string
@@ -90,7 +100,7 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
   }, [product, quantity, selectedStore, onConfirm, onClose])
 
   // Keyboard navigation hook
-  const { focusField, handleKeyDown } = useKeyboardNavigation({
+  const { focusField, handleKeyDown, registerField } = useKeyboardNavigation({
     fieldCount: FIELD_COUNT,
     onEnterSubmit: handleConfirm
   })
@@ -101,46 +111,44 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
     handleIntegerKeyDown(e)
   }, [handleKeyDown])
 
-  // Focus quantity input when modal opens
+  // Focus target store select when modal opens
   useEffect(() => {
     if (isOpen && product) {
-      setTimeout(() => storeSelectRef.current?.focus(), 100)
+      setTimeout(() => focusField(0), 100)
     }
-  }, [isOpen, product])
+  }, [isOpen, product, focusField])
 
-  if (!isOpen || !product) return null
+  if (!product) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Restock Product</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-emerald-600" />
+            Restock Product
+          </DialogTitle>
+        </DialogHeader>
 
-        <div className="p-4">
-          <div className="mb-4">
-            <p className="text-sm text-gray-600">Product</p>
-            <p className="font-medium">{product.name}</p>
-            <p className="text-xs text-gray-500">Item ID: {product.itemId}</p>
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Product</p>
+            <p className="font-bold text-slate-900">{product.name}</p>
+            <p className="text-xs text-slate-500 font-mono">ITEM ID: #{product.itemId}</p>
           </div>
 
-          <div className="mb-4">
-            <label className="block text-sm text-gray-600 mb-1 flex items-center gap-2">
+          <div className="space-y-2">
+            <Label htmlFor="targetStore" className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-emerald-600" />
               Target Store
-            </label>
+            </Label>
             <Select 
               value={selectedStore} 
               onValueChange={setSelectedStore}
             >
               <SelectTrigger 
-                ref={storeSelectRef}
+                ref={registerField(0)}
+                id="targetStore"
                 onKeyDown={(e) => handleKeyDown(e, 0)}
                 className="w-full"
               >
@@ -156,75 +164,66 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
             </Select>
           </div>
 
-          <div className="mb-4">
-            <p className="text-sm text-gray-600">Current Stock at {selectedStore}</p>
-            <p className="font-medium">
-              {loadingStock ? 'Loading...' : `${storeStock ?? product.currentStock} units`}
-            </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Stock at {selectedStore}</p>
+              <p className="text-lg font-bold text-slate-900">
+                {loadingStock ? '...' : `${storeStock ?? product.currentStock} units`}
+              </p>
+            </div>
+            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+              <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider mb-1">New Stock Level</p>
+              <p className="text-lg font-bold text-emerald-700">
+                {loadingStock ? '...' : `${(storeStock ?? product.currentStock) + quantity} units`}
+              </p>
+            </div>
           </div>
 
-          <div className="mb-4">
-            <label className="block text-sm text-gray-600 mb-1">
-              Restock Quantity
-            </label>
-            <input
-              ref={quantityInputRef}
+          <div className="space-y-2">
+            <Label htmlFor="quantity">Restock Quantity</Label>
+            <Input
+              ref={registerField(1)}
+              id="quantity"
               type="number"
               min="1"
               value={quantity}
               onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
               onKeyDown={handleQuantityKeyDown}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="h-11 font-bold text-lg"
             />
           </div>
 
-          <div className="mb-4 p-3 bg-gray-50 rounded-xl">
-            <p className="text-sm text-gray-600">New Stock Level at {selectedStore}</p>
-            <p className="text-2xl font-bold text-emerald-600">
-              {loadingStock ? '...' : `${(storeStock ?? product.currentStock) + quantity} units`}
-            </p>
-          </div>
-
-          <div className="mb-4">
-            <p className="text-sm text-gray-600">Cost Estimate</p>
-            <p className="font-medium">
-              ₵{(product.cost * quantity).toFixed(2)}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-slate-400" />
+              <span className="text-sm font-medium text-slate-600">Cost Estimate</span>
+            </div>
+            <p className="text-lg font-bold text-slate-900">
+              ₵{(product.cost * quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </p>
           </div>
         </div>
 
-        <div className="flex gap-3 p-4 border-t bg-gray-50 rounded-b-lg">
-          <button
-            ref={cancelButtonRef}
+        <DialogFooter className="px-6 py-4 border-t bg-slate-50 shrink-0 gap-3">
+          <Button
+            ref={registerField(2)}
+            variant="outline"
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-100 transition-colors"
-            onKeyDown={(e) => {
-              if (e.key === 'Tab' && e.shiftKey) {
-                e.preventDefault()
-                focusField(1) // Move to quantity input
-              } else if (e.key === 'Enter') {
-                onClose()
-              }
-            }}
+            onKeyDown={(e) => handleKeyDown(e, 2)}
+            className="flex-1 h-11"
           >
             Cancel
-          </button>
-          <button
-            ref={confirmButtonRef}
+          </Button>
+          <Button
+            ref={registerField(3)}
             onClick={handleConfirm}
-            className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors"
-            onKeyDown={(e) => {
-              if (e.key === 'Tab' && e.shiftKey) {
-                e.preventDefault()
-                focusField(2) // Move to cancel button
-              }
-            }}
+            onKeyDown={(e) => handleKeyDown(e, 3)}
+            className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700"
           >
             Confirm Restock
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
-

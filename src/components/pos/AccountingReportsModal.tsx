@@ -767,8 +767,8 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
   return (
     <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-slate-600" />
             Generate Accounting Reports
@@ -942,16 +942,23 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            className="px-8"
+          >
+            Cancel
+          </Button>
           <Button
             onClick={handleGenerateReport}
             disabled={!selectedReport || loading}
-            className="w-full"
+            className="px-8 bg-blue-600 hover:bg-blue-700"
           >
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating Report...
+                Generating...
               </>
             ) : (
               <>
@@ -966,8 +973,8 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
     {/* Preview Modal */}
     <Dialog open={showPreview} onOpenChange={setShowPreview}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Eye className="w-5 h-5 text-slate-600" />
             {selectedConfig?.title} - Preview
@@ -1392,15 +1399,15 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowPreview(false)}>
+        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+          <Button variant="outline" className="px-6" onClick={() => setShowPreview(false)}>
             Close
           </Button>
-          <Button variant="outline" onClick={handlePrint}>
+          <Button variant="outline" className="px-6" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />
             Print
           </Button>
-          <Button onClick={handleDownloadPDF}>
+          <Button className="px-8 bg-blue-600 hover:bg-blue-700" onClick={handleDownloadPDF}>
             <Download className="w-4 h-4 mr-2" />
             Download PDF
           </Button>

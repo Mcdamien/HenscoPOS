@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { formatDateDDMMYYYY } from '@/lib/utils'
 
 interface PendingChange {
   id: string
@@ -150,7 +151,7 @@ export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: Pe
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString()
+    return formatDateDDMMYYYY(dateString)
   }
 
   const getChangeTypeBadge = (type: string) => {
@@ -175,8 +176,8 @@ export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: Pe
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-amber-500" />
             Pending Inventory Changes
@@ -329,8 +330,8 @@ export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: Pe
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+          <Button variant="outline" className="px-8" onClick={onClose}>
             Close
           </Button>
         </DialogFooter>

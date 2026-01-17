@@ -400,8 +400,8 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Icon className={`w-5 h-5 ${config.iconColor}`} />
             {config.title}
@@ -578,7 +578,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
           </form>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t bg-slate-50 shrink-0">
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancel
           </Button>

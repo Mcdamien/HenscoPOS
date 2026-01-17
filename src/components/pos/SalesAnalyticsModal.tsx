@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -244,7 +245,7 @@ export default function SalesAnalyticsModal({ isOpen, onClose, embedded = false 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 rounded-xl flex flex-col p-0 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out"
+        className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 rounded-xl flex flex-col p-0 overflow-hidden"
         style={{ 
           width: modalWidth || 'calc(100vw - 40px)', 
           height: '95vh',
@@ -261,20 +262,44 @@ export default function SalesAnalyticsModal({ isOpen, onClose, embedded = false 
           <div className="w-1.5 h-12 bg-slate-300 rounded-full hover:bg-emerald-500 transition-colors" />
         </div>
 
-        <DialogHeader className="p-6 border-b border-slate-100 shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-emerald-600" />
-            Sales Performance Analytics
-          </DialogTitle>
+        <DialogHeader className="px-6 py-4 border-b bg-white shrink-0">
+          <div className="flex items-center justify-between w-full">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <BarChart3 className="w-6 h-6 text-emerald-600" />
+              Sales Performance Analytics
+            </DialogTitle>
+            <div className="text-xs font-medium text-slate-400 mr-8">
+              Viewport: {modalWidth ? Math.round(modalWidth) : 'Auto'}px
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="py-20 text-center text-slate-500">Loading analytics data...</div>
+            <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mb-4"></div>
+              <p>Fetching analytics data...</p>
+            </div>
           ) : !data ? (
-            <div className="py-20 text-center text-red-500">Failed to load analytics data.</div>
+            <div className="flex flex-col items-center justify-center h-full py-20 text-red-500">
+              <p>Failed to load analytics data.</p>
+              <Button variant="outline" size="sm" onClick={fetchAnalytics} className="mt-4">
+                Retry
+              </Button>
+            </div>
           ) : content}
         </div>
+
+        <DialogFooter className="px-6 py-4 border-t bg-white shrink-0">
+          <div className="flex items-center justify-between w-full">
+            <div className="text-sm font-medium text-slate-500">
+              Last updated: {new Date().toLocaleTimeString()}
+            </div>
+            <Button variant="outline" onClick={onClose} className="px-6 h-10 font-bold">
+              Close Analytics
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
