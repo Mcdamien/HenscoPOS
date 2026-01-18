@@ -20,7 +20,8 @@ interface TransactionItem {
 }
 
 interface Transaction {
-  id: number
+  id: string
+  transactionId: number
   date: string
   store: string
   subtotal: number
@@ -82,11 +83,11 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
           <div className="font-mono receipt-content bg-white p-6 border rounded-xl shadow-md mx-auto max-w-[320px]">
             {/* Header - Uses Arnel Rounded equivalent (Quicksand) */}
             <div className="text-center mb-6 border-b-2 border-dashed border-slate-200 pb-6 font-[var(--font-quicksand)]">
-              <h2 className="text-2xl font-bold text-emerald-600 mb-1 tracking-tight">Hensco POS</h2>
+              <h2 className="text-2xl font-bold text-emerald-600 mb-1 tracking-tight">Yames POS</h2>
               <p className="font-bold text-slate-800 uppercase text-xs tracking-widest">{transaction.store}</p>
               <p className="text-[10px] text-slate-400 mt-1 uppercase">Official Transaction Receipt</p>
               <div className="text-[10px] text-slate-500 mt-4 space-y-1">
-                <p className="font-bold">REF: #TXN-{transaction.id.toString().padStart(6, '0')}</p>
+                <p className="font-bold">REF: #TXN-{(transaction.transactionId || transaction.id || '').toString().padStart(6, '0')}</p>
                 <p>DATE: {formatDateDDMMYYYY(transaction.date)} @ {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
             </div>

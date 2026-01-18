@@ -16,6 +16,9 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { handleNumberKeyDown, handleIntegerKeyDown } from '@/lib/utils'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
+import { dexieDb } from '@/lib/dexie'
+import { useSync } from '@/components/providers/SyncProvider'
+import { v4 as uuidv4 } from 'uuid'
 
 interface Product {
   id: string
@@ -67,6 +70,8 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
     }
   }, [product])
 
+  const { isOnline, sync } = useSync()
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
 
@@ -75,24 +80,39 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
     setSubmitting(true)
 
     try {
-      const response = await fetch('/api/products/restock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          cost: parseFloat(formData.cost),
-          price: parseFloat(formData.price),
-          qty: parseInt(formData.addQty) || 0
+      const restockData = {
+        productId: product.id,
+        cost: parseFloat(formData.cost),
+        price: parseFloat(formData.price),
+        qty: parseInt(formData.addQty) || 0
+      }
+
+      // 1. Update locally in Dexie
+      await dexieDb.transaction('rw', dexieDb.products, dexieDb.syncQueue, async () => {
+        await dexieDb.products.update(product.id, {
+          cost: restockData.cost,
+          price: restockData.price,
+          warehouseStock: product.warehouseStock + restockData.qty,
+          updatedAt: new Date()
+        })
+
+        // 2. Add to Sync Queue
+        // NOTE: /api/products/restock is the endpoint for this
+        await dexieDb.syncQueue.add({
+          table: 'products',
+          action: 'update',
+          data: restockData,
+          timestamp: Date.now()
         })
       })
 
-      if (response.ok) {
-        toast.success('Product updated successfully!')
-        onClose()
-        onSuccess()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || error.message || 'Failed to update product')
+      toast.success('Product updated locally!')
+      onClose()
+      onSuccess()
+
+      // 3. Try to sync immediately if online
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
       console.error('Failed to update product:', error)

@@ -1,19 +1,33 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Plus, Search, FileSpreadsheet, Bell, Package, Truck, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { Plus, Search, FileSpreadsheet, Bell, Package, Truck, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+} from "@/components/ui/alert-dialog"
 import AddInventoryModal from '@/components/pos/AddInventoryModal'
 import ImportProductsModal from '@/components/pos/ImportProductsModal'
 import EditProductModal from '@/components/pos/EditProductModal'
 import PendingApprovalsModal from '@/components/pos/PendingApprovalsModal'
 import TransferHistoryModal from '@/components/pos/TransferHistoryModal'
 import TransferModal from '@/components/pos/TransferModal'
+import { useProducts, usePendingChanges, useTransfers, useStores } from "@/hooks/useOfflineData"
+import { useSync } from '@/components/providers/SyncProvider'
+import { dexieDb } from '@/lib/dexie'
+import { toast } from 'sonner'
 
 interface Product {
   id: string
@@ -42,9 +56,11 @@ interface WarehouseViewProps {
 }
 
 export default function WarehouseView({ stores, currentStore, onStoreChange }: WarehouseViewProps) {
-  const [products, setProducts] = useState<Product[]>([])
-  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([])
-  const [pendingTransfers, setPendingTransfers] = useState<any[]>([])
+  const products = useProducts() || []
+  const offlinePendingChanges = usePendingChanges() || []
+  const offlineTransfers = useTransfers() || []
+  const { sync } = useSync()
+
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -52,58 +68,110 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
   const [showTransferHistoryModal, setShowTransferHistoryModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set())
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showBatchDeleteDialog, setShowBatchDeleteDialog] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [pendingCount, setPendingCount] = useState(0)
-  const [pendingTransfersCount, setPendingTransfersCount] = useState(0)
+  const [loading, setLoading] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  const fetchProducts = async () => {
+  const allStores = useStores() || []
+
+  const currentStoreId = useMemo(() => {
+    return allStores.find(s => s.name === currentStore)?.id
+  }, [allStores, currentStore])
+
+  const toggleProductSelection = (productId: string) => {
+    const newSelected = new Set(selectedProductIds)
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId)
+    } else {
+      newSelected.add(productId)
+    }
+    setSelectedProductIds(newSelected)
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedProductIds.size === filteredProducts.length) {
+      setSelectedProductIds(new Set())
+    } else {
+      setSelectedProductIds(new Set(filteredProducts.map(p => p.id)))
+    }
+  }
+
+  const handleBatchDelete = async () => {
+    if (selectedProductIds.size === 0) return
+
     try {
-      const response = await fetch('/api/products')
-      if (response.ok) {
-        const data = await response.json()
-        setProducts(data)
-      }
+      await dexieDb.transaction('rw', dexieDb.products, dexieDb.syncQueue, async () => {
+        const idsArray = Array.from(selectedProductIds)
+        
+        // 1. Delete locally
+        await dexieDb.products.bulkDelete(idsArray)
+
+        // 2. Add to sync queue
+        for (const id of idsArray) {
+          await dexieDb.syncQueue.add({
+            table: 'products',
+            action: 'delete',
+            data: { id },
+            timestamp: Date.now()
+          })
+        }
+      })
+
+      toast.success(`${selectedProductIds.size} products deleted successfully`)
+      setSelectedProductIds(new Set())
+      sync()
     } catch (error) {
-      console.error('Failed to fetch products:', error)
+      console.error('Failed to batch delete products:', error)
+      toast.error('Failed to delete products')
     } finally {
-      setLoading(false)
+      setShowBatchDeleteDialog(false)
     }
   }
 
-  const fetchPendingCount = async () => {
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return
+
     try {
-      const response = await fetch('/api/inventory/pending-changes?status=pending')
-      if (response.ok) {
-        const data = await response.json()
-        setPendingChanges(data.changes)
-        setPendingCount(data.count)
-      }
+      await dexieDb.transaction('rw', dexieDb.products, dexieDb.syncQueue, async () => {
+        // 1. Delete locally
+        await dexieDb.products.delete(productToDelete.id)
+
+        // 2. Add to sync queue
+        await dexieDb.syncQueue.add({
+          table: 'products',
+          action: 'delete',
+          data: { id: productToDelete.id },
+          timestamp: Date.now()
+        })
+      })
+
+      toast.success('Product deleted successfully')
+      sync()
     } catch (error) {
-      console.error('Failed to fetch pending count:', error)
+      console.error('Failed to delete product:', error)
+      toast.error('Failed to delete product')
+    } finally {
+      setShowDeleteDialog(false)
+      setProductToDelete(null)
     }
   }
 
-  const fetchPendingTransfers = async () => {
-    try {
-      const response = await fetch('/api/transfer?status=pending')
-      if (response.ok) {
-        const data = await response.json()
-        const pending = data.filter((t: any) => t.status === 'pending')
-        setPendingTransfers(pending)
-        setPendingTransfersCount(pending.length)
-      }
-    } catch (error) {
-      console.error('Failed to fetch pending transfers:', error)
-    }
-  }
+  const pendingChanges = useMemo(() => {
+    return offlinePendingChanges.filter(c => c.status === 'pending')
+  }, [offlinePendingChanges])
+
+  const pendingTransfers = useMemo(() => {
+    return offlineTransfers.filter(t => t.status === 'pending')
+  }, [offlineTransfers])
+
+  const pendingCount = pendingChanges.length
+  const pendingTransfersCount = pendingTransfers.length
 
   useEffect(() => {
-    fetchProducts()
-    fetchPendingCount()
-    fetchPendingTransfers()
-    
     // Auto-focus search input on mount
     setTimeout(() => {
       searchInputRef.current?.focus()
@@ -132,7 +200,7 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
   // Helper to get pending returns for a product
   const getPendingReturnsForProduct = (productId: string) => {
     return pendingChanges.filter(
-      change => change.productId === productId && change.changeType === 'return'
+      change => change.productId === productId && (change.changeType === 'return' || change.changeType === 'remove_product')
     )
   }
 
@@ -170,7 +238,7 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
   }
 
   return (
-    <div className="p-8 h-full overflow-y-auto">
+    <div className="pt-0 px-2 pb-8 h-full overflow-y-auto">
       <Card>
         <div className="p-6 border-b border-slate-200">
           <div className="flex items-center justify-between mb-4">
@@ -245,12 +313,29 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
               <Plus className="w-4 h-4 mr-2" />
               Add Inventory
             </Button>
+            {selectedProductIds.size > 0 && (
+              <Button 
+                variant="destructive" 
+                onClick={() => setShowBatchDeleteDialog(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Selected ({selectedProductIds.size})
+              </Button>
+            )}
           </div>
         </div>
 
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300"
+                  checked={filteredProducts.length > 0 && selectedProductIds.size === filteredProducts.length}
+                  onChange={toggleSelectAll}
+                />
+              </TableHead>
               <TableHead>Item ID</TableHead>
               <TableHead>Product Name</TableHead>
               <TableHead>Cost</TableHead>
@@ -277,7 +362,15 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
               filteredProducts.map((product) => {
                 const status = getStockStatus(product.warehouseStock)
                 return (
-                  <TableRow key={product.id}>
+                  <TableRow key={product.id} className={selectedProductIds.has(product.id) ? 'bg-slate-50' : ''}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-slate-300"
+                        checked={selectedProductIds.has(product.id)}
+                        onChange={() => toggleProductSelection(product.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">#{product.itemId}</TableCell>
                     <TableCell>{product.name}</TableCell>
                     <TableCell>{formatCurrency(product.cost)}</TableCell>
@@ -297,16 +390,29 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedProduct(product)
-                          setShowEditModal(true)
-                        }}
-                      >
-                        Edit
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProduct(product)
+                            setShowEditModal(true)
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                          onClick={() => {
+                            setProductToDelete(product)
+                            setShowDeleteDialog(true)
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -322,7 +428,7 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           products={products}
-          onSuccess={fetchProducts}
+          onSuccess={sync}
         />
       )}
 
@@ -330,7 +436,7 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
         <ImportProductsModal
           isOpen={showImportModal}
           onClose={() => setShowImportModal(false)}
-          onSuccess={fetchProducts}
+          onSuccess={sync}
         />
       )}
 
@@ -341,7 +447,7 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
             setShowEditModal(false)
             setSelectedProduct(null)
           }}
-          onSuccess={fetchProducts}
+          onSuccess={sync}
           product={selectedProduct}
         />
       )}
@@ -350,7 +456,7 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
         <PendingApprovalsModal
           isOpen={showPendingModal}
           onClose={() => setShowPendingModal(false)}
-          onRefresh={fetchPendingCount}
+          onRefresh={sync}
         />
       )}
 
@@ -359,7 +465,7 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
         <TransferHistoryModal
           isOpen={showTransferHistoryModal}
           onClose={() => setShowTransferHistoryModal(false)}
-          onRefresh={fetchPendingTransfers}
+          onRefresh={sync}
         />
       )}
 
@@ -371,9 +477,52 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
           stores={stores}
           currentStore={currentStore}
           products={products}
-          onSuccess={fetchProducts}
+          onSuccess={sync}
         />
       )}
+
+      <AlertDialog open={showBatchDeleteDialog} onOpenChange={setShowBatchDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {selectedProductIds.size} selected products from the central warehouse. 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBatchDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Products
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the product
+              {productToDelete && <span className="font-semibold"> {productToDelete.name} </span>}
+              from the system and all warehouse records.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProductToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProduct}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

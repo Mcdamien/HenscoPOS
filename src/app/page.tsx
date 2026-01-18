@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ALLOWED_SHOPS } from '@/lib/constants'
 import AddProductModal from '@/components/pos/AddProductModal'
-import RestockModal from '@/components/pos/RestockModal'
 import DashboardView from '@/components/pos/DashboardView'
 import WarehouseView from '@/components/pos/WarehouseView'
 import StoreInventoryView from '@/components/pos/StoreInventoryView'
@@ -75,7 +74,7 @@ export default function Home() {
 
         <div className="p-4 border-t border-slate-200 shrink-0">
           <div className="mt-2">
-            <p className="text-center text-sm text-slate-400">By McDamien © 2026</p>
+            <p className="text-center text-sm text-slate-400">By McDamien Copyright © 2026</p>
           </div>
         </div>
       </nav>
@@ -83,7 +82,7 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-8 shrink-0 z-20">
+        <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between pl-8 pr-4 shrink-0 z-20 rounded-b-2xl shadow-sm">
           <h1 className="text-xl font-semibold text-slate-800">{getPageTitle()}</h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-600">Admin User</span>

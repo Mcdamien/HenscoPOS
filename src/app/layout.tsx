@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Quicksand, Crimson_Text, Nunito, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+import { SyncProvider } from "@/components/providers/SyncProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,6 +51,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
+  manifest: "/manifest.json",
   openGraph: {
     title: "Z.ai Code Scaffold",
     description: "AI-powered development with modern React stack",
@@ -64,6 +66,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#059669",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -74,7 +80,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${quicksand.variable} ${nunito.variable} ${playfairDisplay.variable} ${crimsonText.variable} antialiased bg-background text-foreground`}
       >
-        {children}
+        <SyncProvider>
+          {children}
+        </SyncProvider>
         <Toaster />
         <SonnerToaster />
       </body>

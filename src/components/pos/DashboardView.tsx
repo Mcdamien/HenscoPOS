@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { DollarSign, CheckCircle, PiggyBank, AlertTriangle, TrendingUp, Calendar, CalendarDays, BarChart3, Eye, X, XCircle, Truck, Package } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -19,6 +19,7 @@ import ReportModal from '@/components/pos/ReportModal'
 import RestockItemsModal from '@/components/pos/RestockItemsModal'
 import TransferHistoryModal from '@/components/pos/TransferHistoryModal'
 import InventoryHistoryModal from '@/components/pos/InventoryHistoryModal'
+import { useTransactions, useProducts, useTransactionItems, useStores, useInventory } from "@/hooks/useOfflineData"
 
 interface DashboardStats {
   totalSales: number
@@ -37,13 +38,14 @@ interface DashboardStats {
 }
 
 interface Transaction {
-  id: number
+  id: string
+  transactionId: number
   date: string
   total: number
   subtotal: number
   tax: number
   items: any[]
-  store: string // Added the missing store property
+  store: string
 }
 
 interface ShopGroup {
@@ -56,6 +58,12 @@ interface ShopGroup {
 }
 
 export default function DashboardView() {
+  const localTransactions = useTransactions() || []
+  const allProducts = useProducts() || []
+  const allTransactionItems = useTransactionItems() || []
+  const allStores = useStores() || []
+  const allInventory = useInventory() || []
+  
   const [showReports, setShowReports] = useState(false)
   const [showRestockModal, setShowRestockModal] = useState(false)
   const [showTransferHistory, setShowTransferHistory] = useState(false)
@@ -64,57 +72,151 @@ export default function DashboardView() {
   const [transferIdToExpand, setTransferIdToExpand] = useState<string | null>(null)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [selectedShopTransactions, setSelectedShopTransactions] = useState<Transaction[] | null>(null)
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [selectedStoreName, setSelectedStoreName] = useState<string | null>(null)
   const [transfers, setTransfers] = useState<any[]>([])
   const [inventoryAdditions, setInventoryAdditions] = useState<any[]>([])
-  const [shopGroups, setShopGroups] = useState<ShopGroup[]>([])
-  const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState<DashboardStats>({
-    totalSales: 0,
-    dailySales: 0,
-    weeklySales: 0,
-    monthlySales: 0,
-    transactions: 0,
-    netProfit: 0,
-    lowStockCount: 0,
-    outOfStockCount: 0,
-    shopSummary: []
-  })
+  const [loading, setLoading] = useState(false)
+
+  // Calculate stats locally
+  const stats = useMemo(() => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    
+    const dailySales = localTransactions
+      .filter(tx => new Date(tx.createdAt).getTime() >= today)
+      .reduce((sum, tx) => sum + tx.total, 0)
+      
+    const totalSales = localTransactions.reduce((sum, tx) => sum + tx.total, 0)
+    
+    // Improved counting: Count products that are low or out of stock in EACH shop
+    let outOfStockCount = 0
+    let lowStockCount = 0
+
+    // Only consider physical shop locations for this count
+    const shopStores = allStores.filter(s => s.name !== 'Warehouse')
+
+    allProducts.forEach(product => {
+      shopStores.forEach(store => {
+        const inv = allInventory.find(i => i.productId === product.id && i.storeId === store.id)
+        const stock = inv ? inv.stock : 0
+        
+        if (stock === 0) {
+          outOfStockCount++
+        } else if (stock < 11) {
+          lowStockCount++
+        }
+      })
+    })
+
+    // Calculate actual net profit from transaction items
+    const netProfit = allTransactionItems.reduce((sum, item) => {
+      return sum + ((item.itemPrice - item.itemCost) * item.qty)
+    }, 0)
+
+    return {
+      totalSales,
+      dailySales,
+      weeklySales: 0, 
+      monthlySales: 0, 
+      transactions: localTransactions.length,
+      netProfit,
+      lowStockCount,
+      outOfStockCount,
+      shopSummary: []
+    }
+  }, [localTransactions, allProducts, allTransactionItems, allInventory, allStores])
+
+  const shopGroups = useMemo(() => {
+    // Group transactions by store
+    const groups: { [key: string]: any[] } = {}
+    const storeMap = new Map(allStores.map(s => [s.id, s.name]))
+    
+    localTransactions.forEach(tx => {
+      const storeName = storeMap.get(tx.storeId) || tx.storeId 
+      if (!groups[storeName]) {
+        groups[storeName] = []
+      }
+      groups[storeName].push(tx)
+    })
+    
+    return Object.entries(groups).map(([store, txs]) => {
+      const sorted = [...txs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      const totalAmount = txs.reduce((sum, tx) => sum + tx.total, 0)
+      
+      return {
+        store,
+        transactions: sorted.map(t => ({ 
+          ...t, 
+          date: t.createdAt.toISOString(), 
+          store: storeMap.get(t.storeId) || t.storeId,
+          items: allTransactionItems.filter(item => item.transactionId === t.id)
+        })),
+        totalAmount,
+        transactionCount: txs.length,
+        firstDate: sorted[sorted.length - 1]?.createdAt.toISOString() || '',
+        lastDate: sorted[0]?.createdAt.toISOString() || ''
+      }
+    }).sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime())
+  }, [localTransactions, allStores])
+
+  const todayTransactions = useMemo(() => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const storeMap = new Map(allStores.map(s => [s.id, s.name]))
+
+    return localTransactions
+      .filter(tx => new Date(tx.createdAt).getTime() >= today)
+      .map(tx => ({
+        ...tx,
+        date: tx.createdAt.toISOString(),
+        store: storeMap.get(tx.storeId) || 'Unknown Shop',
+        items: allTransactionItems.filter(item => item.transactionId === tx.id)
+      })) as unknown as Transaction[]
+  }, [localTransactions, allStores, allTransactionItems])
+
+  const transactionsWithStoreNames = useMemo(() => {
+    const storeMap = new Map(allStores.map(s => [s.id, s.name]))
+    return localTransactions.map(tx => ({
+      ...tx,
+      date: tx.createdAt.toISOString(),
+      store: storeMap.get(tx.storeId) || 'Unknown Shop',
+      items: allTransactionItems.filter(item => item.transactionId === tx.id)
+    })) as unknown as Transaction[]
+  }, [localTransactions, allStores, allTransactionItems])
+
+  const bestSeller = useMemo(() => {
+    if (allTransactionItems.length === 0) return null
+    
+    const salesMap: { [key: string]: { name: string, qty: number } } = {}
+    
+    allTransactionItems.forEach(item => {
+      if (!salesMap[item.productId]) {
+        salesMap[item.productId] = { name: item.itemName, qty: 0 }
+      }
+      salesMap[item.productId].qty += item.qty
+    })
+    
+    let best: { name: string, qty: number } | null = null
+    let maxQty = -1
+    
+    for (const productId in salesMap) {
+      if (salesMap[productId].qty > maxQty) {
+        maxQty = salesMap[productId].qty
+        best = salesMap[productId]
+      }
+    }
+    
+    return best
+  }, [allTransactionItems])
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statsRes, txRes, transferRes, inventoryRes] = await Promise.all([
-          fetch('/api/dashboard/stats'),
-          fetch('/api/transactions'),
+        const [transferRes, inventoryRes] = await Promise.all([
           fetch('/api/transfer'),
           fetch('/api/inventory/addition')
         ])
         
-        if (statsRes.ok) {
-          const statsData = await statsRes.json()
-          console.log('Dashboard Stats Response:', statsData)
-          if (statsData && !statsData.error) {
-            setStats(statsData)
-          } else {
-            console.error('Stats error:', statsData?.error)
-          }
-        } else {
-          console.error('Stats API error:', statsRes.status, statsRes.statusText)
-        }
-        
-        if (txRes.ok) {
-          const txData = await txRes.json()
-          console.log('Transactions Response:', { count: Array.isArray(txData) ? txData.length : 'not array', data: txData })
-          if (Array.isArray(txData)) {
-            setTransactions(txData)
-            // Group transactions by shop
-            setShopGroups(groupTransactionsByShop(txData))
-          }
-        } else {
-          console.error('Transactions API error:', txRes.status, txRes.statusText)
-        }
-
         if (transferRes.ok) {
           const transferData = await transferRes.json()
           if (Array.isArray(transferData)) {
@@ -130,8 +232,6 @@ export default function DashboardView() {
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error)
-      } finally {
-        setLoading(false)
       }
     }
 
@@ -145,35 +245,6 @@ export default function DashboardView() {
       currency: 'GHS',
       currencyDisplay: 'code'
     }).format(safeAmount)
-  }
-
-  // Group transactions by store
-  const groupTransactionsByShop = (txList: Transaction[]): ShopGroup[] => {
-    const groups: { [key: string]: Transaction[] } = {}
-    
-    // Group by store
-    txList.forEach(tx => {
-      if (!groups[tx.store]) {
-        groups[tx.store] = []
-      }
-      groups[tx.store].push(tx)
-    })
-    
-    // Convert to ShopGroup array with totals
-    return Object.entries(groups).map(([store, txs]) => {
-      // Sort transactions by date (newest first)
-      const sorted = [...txs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      const totalAmount = txs.reduce((sum, tx) => sum + tx.total, 0)
-      
-      return {
-        store,
-        transactions: sorted,
-        totalAmount,
-        transactionCount: txs.length,
-        firstDate: sorted[sorted.length - 1]?.date || '',
-        lastDate: sorted[0]?.date || ''
-      }
-    }).sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime()) // Sort by most recent
   }
 
   const StatCard = ({ title, value, trend, icon: Icon, color, bgColor, onClick }: any) => (
@@ -195,7 +266,13 @@ export default function DashboardView() {
           )}
         </div>
         <div className="flex flex-col items-start gap-1">
-          <p className={cn("text-2xl font-bold", color || "text-slate-900")}>{value}</p>
+          <p className={cn(
+            "font-bold", 
+            color || "text-slate-900",
+            typeof value === 'string' && value.length > 15 ? "text-lg" : "text-2xl"
+          )}>
+            {value}
+          </p>
           {trend && (
             <div className={cn("flex items-center gap-1 text-[10px]", color)}>
               {trend}
@@ -211,13 +288,13 @@ export default function DashboardView() {
   }
 
   return (
-    <div className="p-8 h-full overflow-y-auto">
-      <div className="flex items-center justify-between mb-8">
+    <div className="pt-0 px-2 pb-8 h-full overflow-y-auto">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Overview</h2>
         <Button 
           variant="outline" 
           onClick={() => setShowReports(true)}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 mt-4"
         >
           <TrendingUp className="w-4 h-4" />
           Analytics & Reports
@@ -279,35 +356,43 @@ export default function DashboardView() {
           icon={Calendar}
           color="text-indigo-600"
           bgColor="bg-white"
-          onClick={() => setSelectedShopTransactions(transactions)}
+          onClick={() => {
+            setSelectedStoreName('All Shops')
+            setSelectedShopTransactions(todayTransactions)
+          }}
         />
         <StatCard
-          title="Out of Stock"
-          value={stats.outOfStockCount}
-          trend={
-            <>
-              <XCircle className="w-3 h-3" />
-              <span>Restock needed</span>
-            </>
+          title="LOW/ OUT OF STOCK"
+          value={
+            <span className="flex items-center gap-2">
+              <span className="text-amber-600">Low: {stats.lowStockCount}</span>
+              <span className="text-slate-300 font-normal">|</span>
+              <span className="text-red-600">Out: {stats.outOfStockCount}</span>
+            </span>
           }
-          icon={XCircle}
-          color="text-red-600"
-          bgColor="bg-white"
-          onClick={() => setShowRestockModal(true)}
-        />
-        <StatCard
-          title="Low Stock"
-          value={stats.lowStockCount}
           trend={
             <>
               <AlertTriangle className="w-3 h-3" />
-              <span>Low threshold</span>
+              <span>Restock needed</span>
             </>
           }
           icon={AlertTriangle}
           color="text-amber-600"
           bgColor="bg-white"
           onClick={() => setShowRestockModal(true)}
+        />
+        <StatCard
+          title="Best Selling Product"
+          value={bestSeller ? bestSeller.name : 'N/A'}
+          trend={
+            <>
+              <TrendingUp className="w-3 h-3" />
+              <span>{bestSeller ? `${bestSeller.qty} units sold` : 'No sales yet'}</span>
+            </>
+          }
+          icon={TrendingUp}
+          color="text-emerald-600"
+          bgColor="bg-white"
         />
       </div>
 
@@ -359,7 +444,10 @@ export default function DashboardView() {
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => setSelectedShopTransactions(shop.transactions)}
+                        onClick={() => {
+                          setSelectedStoreName(shop.store)
+                          setSelectedShopTransactions(shop.transactions)
+                        }}
                       >
                         View All
                       </Button>
@@ -495,7 +583,7 @@ export default function DashboardView() {
         <ReportModal
           isOpen={showReports}
           onClose={() => setShowReports(false)}
-          transactions={transactions}
+          transactions={transactionsWithStoreNames}
         />
       )}
 
@@ -513,7 +601,7 @@ export default function DashboardView() {
             <DialogHeader className="flex-shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-emerald-600" />
-                All Transactions {selectedShopTransactions.length > 0 ? `- ${selectedShopTransactions[0].store}` : ''}
+                All Transactions {selectedStoreName ? `- ${selectedStoreName}` : ''}
               </DialogTitle>
             </DialogHeader>
             
@@ -531,9 +619,9 @@ export default function DashboardView() {
                 <TableBody>
                   {selectedShopTransactions.map((tx) => (
                     <TableRow key={tx.id}>
-                      <TableCell className="font-medium">#{tx.id}</TableCell>
+                      <TableCell className="font-medium">#{tx.transactionId}</TableCell>
                       <TableCell>{formatDateDDMMYYYY(tx.date)}</TableCell>
-                      <TableCell>{tx.items.length} item{tx.items.length !== 1 ? 's' : ''}</TableCell>
+                      <TableCell>{tx.items?.length || 0} item{(tx.items?.length || 0) !== 1 ? 's' : ''}</TableCell>
                       <TableCell className="text-right font-bold">{formatCurrency(tx.total)}</TableCell>
                       <TableCell className="text-right">
                         <Button 
@@ -572,9 +660,7 @@ export default function DashboardView() {
           onClose={() => setShowRestockModal(false)}
           onRestockComplete={() => {
             // Refresh dashboard stats after restock
-            fetch('/api/dashboard/stats')
-              .then(res => res.json())
-              .then(data => setStats(prev => ({ ...prev, ...data })))
+            // Data will refresh automatically due to useLiveQuery hooks
           }}
         />
       )}
@@ -603,4 +689,3 @@ export default function DashboardView() {
     </div>
   )
 }
-

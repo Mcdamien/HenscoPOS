@@ -11,11 +11,7 @@ export async function GET() {
       orderBy: { name: 'asc' }
     })
     
-    // Return array of names to match existing usage patterns if any, 
-    // or objects if that's what's expected.
-    // Given WarehouseView used string[], let's return names or check if objects are better.
-    // TransferModal uses stores: string[]
-    return NextResponse.json(stores.map(s => s.name))
+    return NextResponse.json(stores)
   } catch (error) {
     console.error('Failed to fetch stores:', error)
     return NextResponse.json(

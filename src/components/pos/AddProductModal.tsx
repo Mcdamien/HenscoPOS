@@ -28,6 +28,9 @@ import {
 import { cn, handleNumberKeyDown, handleIntegerKeyDown } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
+import { dexieDb } from '@/lib/dexie'
+import { useSync } from '@/components/providers/SyncProvider'
+import { v4 as uuidv4 } from 'uuid'
 
 interface Product {
   id: string
@@ -122,6 +125,8 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
     setTimeout(() => focusField(1), 0)
   }
 
+  const { isOnline, sync } = useSync()
+
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
       toast.error('Product name is required')
@@ -133,28 +138,57 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
     setSubmitting(true)
 
     try {
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          cost: parseFloat(formData.cost),
-          price: parseFloat(formData.price),
-          stock: parseInt(formData.stock)
+      const productData = {
+        name: formData.name,
+        cost: parseFloat(formData.cost),
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock) || 0
+      }
+
+      // 1. Save locally to Dexie
+      await dexieDb.transaction('rw', dexieDb.products, dexieDb.syncQueue, async () => {
+        const existing = await dexieDb.products.where('name').equals(formData.name).first()
+        
+        if (existing) {
+          await dexieDb.products.update(existing.id, {
+            cost: productData.cost,
+            price: productData.price,
+            warehouseStock: existing.warehouseStock + productData.stock,
+            updatedAt: new Date()
+          })
+        } else {
+          await dexieDb.products.add({
+            id: uuidv4(),
+            itemId: 0, // Temporary ID, server will assign
+            name: productData.name,
+            cost: productData.cost,
+            price: productData.price,
+            warehouseStock: productData.stock,
+            restockQty: 0,
+            updatedAt: new Date()
+          })
+        }
+
+        // 2. Add to Sync Queue
+        await dexieDb.syncQueue.add({
+          table: 'products',
+          action: 'create',
+          data: productData,
+          timestamp: Date.now()
         })
       })
 
-      if (response.ok) {
-        toast.success('Product added successfully!')
-        onClose()
-        onSuccess()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || error.message || 'Failed to add product')
+      toast.success('Product saved locally!')
+      handleClose()
+      onSuccess()
+
+      // 3. Try to sync immediately if online
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
-      console.error('Failed to add product:', error)
-      toast.error('Failed to add product')
+      console.error('Failed to save product:', error)
+      toast.error('Failed to save product')
     } finally {
       setSubmitting(false)
     }

@@ -29,6 +29,9 @@ import { cn, handleNumberKeyDown, handleIntegerKeyDown } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
+import { dexieDb } from '@/lib/dexie'
+import { useSync } from '@/components/providers/SyncProvider'
+import { v4 as uuidv4 } from 'uuid'
 
 interface Product {
   id: string
@@ -182,6 +185,8 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
     setItems(items.filter(item => item.id !== id))
   }
 
+  const { isOnline, sync } = useSync()
+
   async function handleSubmit() {
     let finalItems = [...items]
 
@@ -191,7 +196,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
       if (!isNaN(stockNum) && stockNum > 0) {
         finalItems.push({
           ...currentItem,
-          id: 'temp'
+          id: uuidv4()
         })
       }
     }
@@ -204,26 +209,55 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
     setSubmitting(true)
 
     try {
-      const response = await fetch('/api/inventory/addition', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: finalItems,
-          referenceId: inventoryId
+      const additionData = {
+        items: finalItems,
+        referenceId: inventoryId
+      }
+
+      // 1. Save locally to Dexie
+      const newAdditionId = uuidv4()
+      const totalCost = finalItems.reduce((sum, item) => sum + (parseFloat(item.cost) * parseInt(item.stock)), 0)
+      
+      await dexieDb.transaction('rw', dexieDb.inventoryAdditions, dexieDb.inventoryAdditionItems, dexieDb.syncQueue, async () => {
+        await dexieDb.inventoryAdditions.add({
+          id: newAdditionId,
+          additionId: Math.floor(Math.random() * 1000000), // Temporary ID
+          referenceId: inventoryId,
+          totalCost,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+
+        await dexieDb.inventoryAdditionItems.bulkAdd(finalItems.map(item => ({
+          id: uuidv4(),
+          inventoryAdditionId: newAdditionId,
+          productId: products.find(p => p.name === item.name)?.id || uuidv4(),
+          itemName: item.name,
+          cost: parseFloat(item.cost),
+          price: parseFloat(item.price),
+          qty: parseInt(item.stock)
+        })))
+
+        // 2. Add to Sync Queue
+        await dexieDb.syncQueue.add({
+          table: 'inventoryAdditions',
+          action: 'create',
+          data: additionData,
+          timestamp: Date.now()
         })
       })
 
-      if (response.ok) {
-        toast.success('Inventory added successfully!')
-        handleClose()
-        onSuccess()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to add inventory')
+      toast.success('Inventory saved locally!')
+      handleClose()
+      onSuccess()
+
+      // 3. Try to sync immediately if online
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
-      console.error('Failed to add inventory:', error)
-      toast.error('Failed to add inventory')
+      console.error('Failed to save inventory:', error)
+      toast.error('Failed to save inventory')
     } finally {
       setSubmitting(false)
     }

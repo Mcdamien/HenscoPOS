@@ -13,17 +13,22 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { usePendingChanges, useProducts, useStores } from '@/hooks/useOfflineData'
+import { dexieDb } from '@/lib/dexie'
+import { useSync } from '@/components/providers/SyncProvider'
+import { useMemo } from 'react'
+import { v4 as uuidv4 } from 'uuid'
 
 interface PendingChange {
   id: string
   productId: string
   storeId: string
-  product: {
+  product?: {
     id: string
     itemId: number
     name: string
   }
-  store: {
+  store?: {
     id: string
     name: string
   }
@@ -34,7 +39,7 @@ interface PendingChange {
   reason: string | null
   status: string
   requestedBy: string | null
-  createdAt: string
+  createdAt: Date
 }
 
 interface PendingApprovalsModalProps {
@@ -44,59 +49,146 @@ interface PendingApprovalsModalProps {
 }
 
 export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: PendingApprovalsModalProps) {
-  const [changes, setChanges] = useState<PendingChange[]>([])
-  const [loading, setLoading] = useState(true)
+  const offlineChanges = usePendingChanges() || []
+  const allProducts = useProducts() || []
+  const allStores = useStores() || []
+  const { isOnline, sync } = useSync()
+  
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectInput, setShowRejectInput] = useState<string | null>(null)
   const rejectInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (showRejectInput && rejectInputRef.current) {
-      rejectInputRef.current.focus()
-    }
-  }, [showRejectInput])
+  const joinedChanges = useMemo(() => {
+    const productMap = new Map(allProducts.map(p => [p.id, p]))
+    const storeIdMap = new Map(allStores.map(s => [s.id, s]))
+    const storeNameMap = new Map(allStores.map(s => [s.name, s]))
 
-  const fetchPendingChanges = async () => {
-    try {
-      const response = await fetch('/api/inventory/pending-changes?status=pending')
-      if (response.ok) {
-        const data = await response.json()
-        setChanges(data.changes)
-      }
-    } catch (error) {
-      console.error('Failed to fetch pending changes:', error)
-      toast.error('Failed to load pending changes')
-    } finally {
-      setLoading(false)
-    }
-  }
+    return offlineChanges.map(change => ({
+      ...change,
+      product: productMap.get(change.productId),
+      store: storeIdMap.get(change.storeId) || storeNameMap.get(change.storeId)
+    })) as PendingChange[]
+  }, [offlineChanges, allProducts, allStores])
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchPendingChanges()
-    }
-  }, [isOpen])
+  const changes = joinedChanges.filter(c => c.status === 'pending')
+  const loading = false // Not really loading from network anymore
 
   const handleApprove = async (change: PendingChange) => {
     setProcessingId(change.id)
     try {
-      const response = await fetch('/api/inventory/approve-change', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pendingChangeId: change.id,
-          reviewedBy: 'Warehouse Manager'
+      const approveData = {
+        pendingChangeId: change.id,
+        reviewedBy: 'Warehouse Manager'
+      }
+
+      // 1. Update locally
+      await dexieDb.transaction('rw', [dexieDb.pendingChanges, dexieDb.syncQueue, dexieDb.products, dexieDb.inventories], async () => {
+        // Update pending change status
+        await dexieDb.pendingChanges.update(change.id, {
+          status: 'approved',
+          reviewedBy: approveData.reviewedBy,
+          reviewedAt: new Date(),
+          updatedAt: new Date()
+        })
+
+        // Apply inventory changes locally
+        const product = await dexieDb.products.get(change.productId)
+        const inventory = await dexieDb.inventories
+          .where('[storeId+productId]')
+          .equals([change.storeId, change.productId])
+          .first()
+
+        if (change.changeType === 'add') {
+          if (product) {
+            await dexieDb.products.update(product.id, {
+              warehouseStock: Math.max(0, product.warehouseStock - change.qty),
+              updatedAt: new Date()
+            })
+          }
+          if (inventory) {
+            await dexieDb.inventories.update(inventory.id, {
+              stock: inventory.stock + change.qty,
+              updatedAt: new Date()
+            })
+          } else {
+            await dexieDb.inventories.add({
+              id: uuidv4(),
+              storeId: change.storeId,
+              productId: change.productId,
+              stock: change.qty,
+              updatedAt: new Date()
+            })
+          }
+        } else if (change.changeType === 'remove') {
+          if (inventory) {
+            await dexieDb.inventories.update(inventory.id, {
+              stock: Math.max(0, inventory.stock - change.qty),
+              updatedAt: new Date()
+            })
+          }
+        } else if (change.changeType === 'return') {
+          if (inventory) {
+            await dexieDb.inventories.update(inventory.id, {
+              stock: Math.max(0, inventory.stock - change.qty),
+              updatedAt: new Date()
+            })
+          }
+          if (product) {
+            await dexieDb.products.update(product.id, {
+              warehouseStock: product.warehouseStock + change.qty,
+              updatedAt: new Date()
+            })
+          }
+        } else if (change.changeType === 'remove_product') {
+          if (product) {
+            await dexieDb.products.update(product.id, {
+              warehouseStock: product.warehouseStock + change.qty,
+              updatedAt: new Date()
+            })
+          }
+          if (inventory) {
+            await dexieDb.inventories.delete(inventory.id)
+          }
+        } else if (change.changeType === 'adjust') {
+          if (change.qty !== 0 && inventory) {
+            const diff = change.qty - inventory.stock
+            if (diff > 0 && product) {
+              await dexieDb.products.update(product.id, {
+                warehouseStock: Math.max(0, product.warehouseStock - diff),
+                updatedAt: new Date()
+              })
+            }
+            await dexieDb.inventories.update(inventory.id, {
+              stock: change.qty,
+              updatedAt: new Date()
+            })
+          }
+          if (change.newCost !== null || change.newPrice !== null) {
+            if (product) {
+              await dexieDb.products.update(product.id, {
+                cost: change.newCost !== null ? change.newCost : product.cost,
+                price: change.newPrice !== null ? change.newPrice : product.price,
+                updatedAt: new Date()
+              })
+            }
+          }
+        }
+
+        // 2. Add to sync queue
+        await dexieDb.syncQueue.add({
+          table: 'pendingChanges',
+          action: 'approve',
+          data: approveData,
+          timestamp: Date.now()
         })
       })
 
-      if (response.ok) {
-        toast.success(`Approved: ${change.product.name} for ${change.store.name}`)
-        fetchPendingChanges()
-        onRefresh()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to approve change')
+      toast.success(`Approved locally: ${change.product?.name || 'Unknown Product'}`)
+      onRefresh()
+      
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
       console.error('Failed to approve change:', error)
@@ -114,24 +206,37 @@ export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: Pe
 
     setProcessingId(change.id)
     try {
-      const response = await fetch('/api/inventory/reject-change', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pendingChangeId: change.id,
-          reviewedBy: 'Warehouse Manager',
-          reason: rejectReason
+      const rejectData = {
+        pendingChangeId: change.id,
+        reviewedBy: 'Warehouse Manager',
+        reason: rejectReason
+      }
+
+      // 1. Update locally
+      await dexieDb.transaction('rw', dexieDb.pendingChanges, dexieDb.syncQueue, async () => {
+        await dexieDb.pendingChanges.update(change.id, {
+          status: 'rejected',
+          reviewedBy: rejectData.reviewedBy,
+          reviewedAt: new Date(),
+          updatedAt: new Date()
+        })
+
+        // 2. Add to sync queue
+        await dexieDb.syncQueue.add({
+          table: 'pendingChanges',
+          action: 'reject',
+          data: rejectData,
+          timestamp: Date.now()
         })
       })
 
-      if (response.ok) {
-        toast.success(`Rejected: ${change.product.name}`)
-        setShowRejectInput(null)
-        setRejectReason('')
-        fetchPendingChanges()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to reject change')
+      toast.success(`Rejected locally: ${change.product?.name || 'Unknown Product'}`)
+      setShowRejectInput(null)
+      setRejectReason('')
+      onRefresh()
+
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
       console.error('Failed to reject change:', error)
@@ -141,16 +246,16 @@ export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: Pe
     }
   }
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | null | undefined) => {
     return new Intl.NumberFormat('en-GH', {
       style: 'currency',
       currency: 'GHS',
       currencyDisplay: 'code'
-    }).format(amount)
+    }).format(amount || 0)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString()
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleString()
   }
 
   const getChangeTypeBadge = (type: string) => {
@@ -158,13 +263,15 @@ export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: Pe
       add: 'bg-emerald-100 text-emerald-700',
       remove: 'bg-red-100 text-red-700',
       adjust: 'bg-blue-100 text-blue-700',
-      return: 'bg-amber-100 text-amber-700'
+      return: 'bg-amber-100 text-amber-700',
+      remove_product: 'bg-orange-100 text-orange-700'
     }
     const labels: Record<string, string> = {
       add: 'Add',
       remove: 'Remove',
       adjust: 'Adjust',
-      return: 'Return'
+      return: 'Return',
+      remove_product: 'Return & Remove'
     }
     return (
       <Badge className={styles[type] || 'bg-slate-100 text-slate-700'}>
@@ -209,8 +316,8 @@ export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: Pe
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <Package className="w-4 h-4 text-slate-500" />
-                      <span className="font-medium">{change.product.name}</span>
-                      <span className="text-slate-400 text-sm">#{change.product.itemId}</span>
+                      <span className="font-medium">{change.product?.name || 'Unknown Product'}</span>
+                      <span className="text-slate-400 text-sm">#{change.product?.itemId || 'N/A'}</span>
                       {getChangeTypeBadge(change.changeType)}
                     </div>
                     <span className="text-xs text-slate-500">
@@ -222,7 +329,7 @@ export default function PendingApprovalsModal({ isOpen, onClose, onRefresh }: Pe
                     <div className="flex items-center gap-2 text-sm">
                       <Store className="w-4 h-4 text-slate-400" />
                       <span className="text-slate-600">Store:</span>
-                      <span className="font-medium">{change.store.name}</span>
+                      <span className="font-medium">{change.store?.name || 'Unknown Store'}</span>
                     </div>
                     <div className="text-sm">
                       <span className="text-slate-600">Quantity:</span>

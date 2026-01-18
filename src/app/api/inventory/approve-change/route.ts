@@ -130,6 +130,24 @@ export async function POST(request: NextRequest) {
           }
         }
       })
+    } else if (pendingChange.changeType === 'remove_product') {
+      // For 'remove_product' type: return all stock to warehouse and delete inventory record
+      if (inventory) {
+        // Increment warehouse stock
+        await db.product.update({
+          where: { id: pendingChange.productId },
+          data: {
+            warehouseStock: {
+              increment: pendingChange.qty
+            }
+          }
+        })
+
+        // Delete inventory record
+        await db.inventory.delete({
+          where: { id: inventory.id }
+        })
+      }
     } else if (pendingChange.changeType === 'adjust') {
       // For 'adjust' type: update inventory quantity if qty is provided
       if (pendingChange.qty !== 0 && inventory) {

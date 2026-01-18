@@ -57,7 +57,12 @@ export async function POST(request: NextRequest) {
       })
 
       const productMap = new Map(dbProducts.map(p => [p.id, p]))
-      const transferItemsData = []
+      const transferItemsData: Array<{
+        stockTransferId: string;
+        productId: string;
+        itemName: string;
+        qty: number;
+      }> = []
 
       // 4. Validate all items and prepare data
       for (const item of items) {

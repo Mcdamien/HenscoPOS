@@ -170,7 +170,13 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
       const data = await response.json()
 
       if (data.success) {
-        setReportData(data.data)
+        // Map selectedReport back to the property names in ReportData interface
+        const reportKey = 
+          selectedReport === 'profit-loss' ? 'profitLoss' : 
+          selectedReport === 'trial-balance' ? 'trialBalance' : 
+          'balanceSheet';
+        
+        setReportData({ [reportKey]: data.data })
         setHasGenerated(true)
         toast.success(`${REPORT_CONFIG[selectedReport].title} generated successfully!`)
       } else {

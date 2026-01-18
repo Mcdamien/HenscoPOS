@@ -1,5 +1,0 @@
-import { defineConfig } from '@prisma/cli';
-
-export default defineConfig({
-  schema: '/home/brewhaven/Desktop/pos_app/prisma/schema.prisma',
-});

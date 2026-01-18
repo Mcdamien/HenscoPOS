@@ -14,8 +14,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { handleIntegerKeyDown, handleNumberKeyDown } from '@/lib/utils'
+import { handleIntegerKeyDown, handleNumberKeyDown, cn } from '@/lib/utils'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
+import { dexieDb } from '@/lib/dexie'
+import { useSync } from '@/components/providers/SyncProvider'
+import { v4 as uuidv4 } from 'uuid'
 
 interface Product {
   id: string
@@ -77,6 +80,8 @@ export default function EditStoreProductModal({
     }
   }, [product])
 
+  const { isOnline, sync } = useSync()
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -93,32 +98,55 @@ export default function EditStoreProductModal({
     setSubmitting(true)
 
     try {
-      const response = await fetch('/api/inventory/request-change', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          storeId: currentStoreId,
-          changeType: formData.changeType,
-          qty: qty,
-          newCost: formData.newCost ? parseFloat(formData.newCost) : null,
-          newPrice: formData.newPrice ? parseFloat(formData.newPrice) : null,
-          reason: formData.reason,
-          requestedBy: 'Store User'
+      const changeData = {
+        productId: product.id,
+        storeId: currentStoreId,
+        changeType: formData.changeType,
+        qty: qty,
+        newCost: formData.newCost ? parseFloat(formData.newCost) : null,
+        newPrice: formData.newPrice ? parseFloat(formData.newPrice) : null,
+        reason: formData.reason,
+        requestedBy: 'Store User'
+      }
+
+      // 1. Save locally to Dexie
+      const newChangeId = uuidv4()
+      await dexieDb.transaction('rw', dexieDb.pendingChanges, dexieDb.syncQueue, async () => {
+        await dexieDb.pendingChanges.add({
+          id: newChangeId,
+          productId: changeData.productId,
+          storeId: changeData.storeId,
+          changeType: changeData.changeType,
+          qty: changeData.qty,
+          newCost: changeData.newCost,
+          newPrice: changeData.newPrice,
+          reason: changeData.reason,
+          status: 'pending',
+          requestedBy: changeData.requestedBy,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+
+        // 2. Add to Sync Queue
+        await dexieDb.syncQueue.add({
+          table: 'pendingChanges',
+          action: 'create',
+          data: changeData,
+          timestamp: Date.now()
         })
       })
 
-      if (response.ok) {
-        toast.success('Inventory change request submitted for approval!')
-        onClose()
-        onSuccess()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || error.message || 'Failed to submit request')
+      toast.success('Inventory change request saved locally!')
+      onClose()
+      onSuccess()
+
+      // 3. Try to sync immediately if online
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
-      console.error('Failed to submit inventory change request:', error)
-      toast.error('Failed to submit inventory change request')
+      console.error('Failed to save inventory change request:', error)
+      toast.error('Failed to save inventory change request')
     } finally {
       setSubmitting(false)
     }

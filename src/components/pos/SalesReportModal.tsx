@@ -26,7 +26,8 @@ interface TransactionItem {
 }
 
 interface Transaction {
-  id: number
+  id: string
+  transactionId: number
   date: string
   total: number
   store: string
@@ -84,7 +85,7 @@ export default function SalesReportModal({
         matchesDate = txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear()
       }
 
-      const matchesItem = itemSearch === '' || tx.items.some(item => 
+      const matchesItem = itemSearch === '' || (tx.items || []).some(item => 
         item.itemName.toLowerCase().includes(itemSearch.toLowerCase())
       )
 
@@ -96,7 +97,7 @@ export default function SalesReportModal({
     const stats: Record<string, { name: string, qty: number, revenue: number }> = {}
     
     filteredTransactions.forEach(tx => {
-      tx.items.forEach(item => {
+      (tx.items || []).forEach(item => {
         if (!stats[item.productId]) {
           stats[item.productId] = { name: item.itemName, qty: 0, revenue: 0 }
         }
@@ -229,7 +230,7 @@ export default function SalesReportModal({
                   ) : (
                     filteredTransactions.map((tx) => (
                       <TableRow key={tx.id}>
-                        <TableCell className="font-medium text-emerald-600">#{tx.id}</TableCell>
+                        <TableCell className="font-medium text-emerald-600">#{tx.transactionId}</TableCell>
                         <TableCell className="text-slate-600">{formatDateDDMMYYYY(tx.date)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5">
@@ -239,7 +240,7 @@ export default function SalesReportModal({
                         </TableCell>
                         <TableCell>
                           <span className="text-xs px-2 py-1 bg-slate-100 rounded-full text-slate-600">
-                            {tx.items.length} {tx.items.length === 1 ? 'item' : 'items'}
+                            {(tx.items || []).length} {(tx.items || []).length === 1 ? 'item' : 'items'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right font-bold">{formatCurrency(tx.total)}</TableCell>

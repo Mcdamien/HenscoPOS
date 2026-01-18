@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { productId, storeName } = body
+    const { productId, storeName, storeId } = body
 
     if (!productId) {
       return NextResponse.json(
@@ -13,13 +13,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let storeId: string | undefined
-    if (storeName) {
+    let finalStoreId = storeId
+    if (!finalStoreId && storeName) {
       const store = await db.store.findUnique({
         where: { name: storeName }
       })
       if (store) {
-        storeId = store.id
+        finalStoreId = store.id
       }
     }
 
@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     await db.pendingInventoryChange.updateMany({
       where: {
         productId,
-        storeId,
-        changeType: 'return',
+        storeId: finalStoreId,
+        changeType: { in: ['return', 'remove_product'] },
         status: 'approved'
       },
       data: {

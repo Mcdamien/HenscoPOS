@@ -16,9 +16,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate change type
-    if (!['add', 'remove', 'adjust'].includes(changeType)) {
+    if (!['add', 'remove', 'adjust', 'return', 'remove_product'].includes(changeType)) {
       return NextResponse.json(
-        { error: 'Invalid change type. Must be add, remove, or adjust' },
+        { error: 'Invalid change type. Must be add, remove, adjust, return, or remove_product' },
         { status: 400 }
       )
     }
@@ -36,9 +36,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if store exists and is allowed
-    const store = await db.store.findUnique({
+    let store = await db.store.findUnique({
       where: { id: storeId }
     })
+
+    // If not found by ID, try by name
+    if (!store) {
+      store = await db.store.findUnique({
+        where: { name: storeId }
+      })
+    }
 
     if (!store || !ALLOWED_SHOPS.includes(store.name as any)) {
       return NextResponse.json(
@@ -46,6 +53,9 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
+
+    // Update storeId to the real ID if it was a name
+    const finalStoreId = store.id
 
     // For 'add' changes, validate warehouse stock
     if (changeType === 'add' && qty > 0) {
@@ -58,11 +68,11 @@ export async function POST(request: NextRequest) {
     }
 
     // For 'remove' changes, validate store stock
-    if (changeType === 'remove' && qty > 0) {
+    if ((changeType === 'remove' || changeType === 'return' || changeType === 'remove_product') && qty > 0) {
       const inventory = await db.inventory.findUnique({
         where: {
           storeId_productId: {
-            storeId,
+            storeId: finalStoreId,
             productId
           }
         }
@@ -81,7 +91,7 @@ export async function POST(request: NextRequest) {
     const existingPending = await db.pendingInventoryChange.findFirst({
       where: {
         productId,
-        storeId,
+        storeId: finalStoreId,
         status: 'pending'
       }
     })
@@ -97,7 +107,7 @@ export async function POST(request: NextRequest) {
     const pendingChange = await db.pendingInventoryChange.create({
       data: {
         productId,
-        storeId,
+        storeId: finalStoreId,
         changeType,
         qty: parseInt(qty) || 0,
         newCost: newCost ? parseFloat(newCost) : null,

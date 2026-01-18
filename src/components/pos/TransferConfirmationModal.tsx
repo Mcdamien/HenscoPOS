@@ -13,20 +13,22 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { dexieDb } from '@/lib/dexie'
+import { useSync } from '@/components/providers/SyncProvider'
 
-interface TransferItem {
+export interface TransferItem {
   id: string
   itemName: string
   qty: number
 }
 
-interface Transfer {
+export interface Transfer {
   id: string
   transferId: number
   fromStore: string | null
   toStore: string
   status: string
-  createdAt: string
+  createdAt: Date
   items: TransferItem[]
 }
 
@@ -45,6 +47,7 @@ export default function TransferConfirmationModal({
   currentStore,
   transfers 
 }: TransferConfirmationModalProps) {
+  const { isOnline, sync } = useSync()
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [localTransfers, setLocalTransfers] = useState<Transfer[]>(transfers)
 
@@ -54,49 +57,49 @@ export default function TransferConfirmationModal({
   }, [transfers])
 
   const handleConfirm = async (transfer: Transfer) => {
-    console.log('=== CONFIRM BUTTON CLICKED ===')
-    console.log('Transfer ID being sent:', transfer.transferId)
-    console.log('Transfer database ID:', transfer.id)
-
     setProcessingId(transfer.id)
 
     try {
-      console.log('Sending API request with transferId:', transfer.transferId)
-      const response = await fetch('/api/transfer/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transferId: transfer.transferId,
-          confirmedBy: currentStore,
-          confirmedAt: new Date().toISOString() // Include the confirmedAt field
+      const confirmData = {
+        transferId: transfer.transferId,
+        confirmedBy: currentStore,
+        confirmedAt: new Date().toISOString()
+      }
+
+      // 1. Update locally
+      await dexieDb.transaction('rw', dexieDb.stockTransfers, dexieDb.syncQueue, async () => {
+        await dexieDb.stockTransfers.update(transfer.id, {
+          status: 'confirmed',
+          confirmedBy: confirmData.confirmedBy,
+          confirmedAt: new Date(confirmData.confirmedAt),
+          updatedAt: new Date()
+        })
+
+        // 2. Add to sync queue
+        await dexieDb.syncQueue.add({
+          table: 'stockTransfers',
+          action: 'update', // Action will be 'confirm' but handled via update in queue with specific data
+          data: { ...confirmData, action: 'confirm' },
+          timestamp: Date.now()
         })
       })
 
-      console.log('API Response status:', response.status)
+      toast.success(`Transfer #${transfer.transferId} confirmed locally!`)
+      setLocalTransfers(prev => prev.filter(t => t.id !== transfer.id))
+      onRefresh()
 
-      const result = await response.json()
-      console.log('API Response data:', result)
-
-      if (response.ok) {
-        toast.success(`Transfer #${transfer.transferId} confirmed successfully!`)
-        setLocalTransfers(prev => prev.filter(t => t.id !== transfer.id))
-        onRefresh()
-      } else {
-        console.error('API Error:', result.error)
-        toast.error(result.error || 'Failed to confirm transfer')
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
-      console.error('Network error during confirmation:', error)
-      toast.error('Network error. Please try again.')
+      console.error('Failed to confirm transfer:', error)
+      toast.error('Failed to confirm transfer')
     } finally {
       setProcessingId(null)
     }
   }
 
   const handleCancel = async (transfer: Transfer) => {
-    console.log('=== CANCEL BUTTON CLICKED ===')
-    console.log('Transfer ID being cancelled:', transfer.transferId)
-    
     if (!confirm(`Are you sure you want to cancel transfer #${transfer.transferId}?`)) {
       return
     }
@@ -104,40 +107,45 @@ export default function TransferConfirmationModal({
     setProcessingId(transfer.id)
     
     try {
-      console.log('Sending cancel API request with transferId:', transfer.transferId)
-      const response = await fetch('/api/transfer/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transferId: transfer.transferId,
-          reason: 'Cancelled by store',
-          cancelledBy: currentStore
+      const cancelData = {
+        transferId: transfer.transferId,
+        reason: 'Cancelled by store',
+        cancelledBy: currentStore
+      }
+
+      // 1. Update locally
+      await dexieDb.transaction('rw', dexieDb.stockTransfers, dexieDb.syncQueue, async () => {
+        await dexieDb.stockTransfers.update(transfer.id, {
+          status: 'cancelled',
+          updatedAt: new Date()
+        })
+
+        // 2. Add to sync queue
+        await dexieDb.syncQueue.add({
+          table: 'stockTransfers',
+          action: 'update',
+          data: { ...cancelData, action: 'cancel' },
+          timestamp: Date.now()
         })
       })
 
-      console.log('Cancel API Response status:', response.status)
-      
-      const result = await response.json()
-      console.log('Cancel API Response data:', result)
+      toast.success(`Transfer #${transfer.transferId} cancelled locally`)
+      setLocalTransfers(prev => prev.filter(t => t.id !== transfer.id))
+      onRefresh()
 
-      if (response.ok) {
-        toast.success(`Transfer #${transfer.transferId} has been cancelled`)
-        setLocalTransfers(prev => prev.filter(t => t.id !== transfer.id))
-        onRefresh()
-      } else {
-        console.error('Cancel API Error:', result.error)
-        toast.error(result.error || 'Failed to cancel transfer')
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
-      console.error('Network error during cancellation:', error)
-      toast.error('Network error. Please try again.')
+      console.error('Failed to cancel transfer:', error)
+      toast.error('Failed to cancel transfer')
     } finally {
       setProcessingId(null)
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString()
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleString()
   }
 
   // Group transfers by ID for display

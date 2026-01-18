@@ -21,6 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ALLOWED_SHOPS } from '@/lib/constants'
+import { dexieDb } from '@/lib/dexie'
 
 interface RestockItem {
   id: string
@@ -56,37 +58,67 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
+interface Store {
+  id: string
+  name: string
+}
+
 export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }: RestockItemsModalProps) {
   const [items, setItems] = useState<RestockItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
   const [filter, setFilter] = useState<'all' | 'out' | 'low'>('all')
-  const [selectedStore, setSelectedStore] = useState<string>('')
-  const [stores, setStores] = useState<string[]>([])
+  const [selectedStoreId, setSelectedStoreId] = useState<string>('')
+  const [allStores, setAllStores] = useState<Store[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (isOpen) {
-      if (selectedStore) {
-        fetchLowStockItems(selectedStore)
-      }
-      fetchStores()
+      fetchStores().then((stores) => {
+        if (selectedStoreId) {
+          fetchLowStockItems(selectedStoreId)
+        } else if (stores.length > 0) {
+          const firstShop = stores.find(s => s.name !== 'Warehouse') || stores[0]
+          setSelectedStoreId(firstShop.id)
+          fetchLowStockItems(firstShop.id)
+        }
+      })
+      
       // Auto-focus search input
       setTimeout(() => {
         searchInputRef.current?.focus()
       }, 100)
     }
-  }, [isOpen, selectedStore])
+  }, [isOpen, selectedStoreId])
 
-  const fetchLowStockItems = async (store: string) => {
+  const fetchLowStockItems = async (storeId: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/products/low-stock?store=${encodeURIComponent(store)}`)
-      if (response.ok) {
-        const data = await response.json()
-        setItems(data)
-      }
+      const allProducts = await dexieDb.products.toArray()
+      
+      const storeInv = await dexieDb.inventories
+        .where('storeId')
+        .equals(storeId)
+        .toArray()
+      
+      const invMap = new Map(storeInv.map(i => [i.productId, i.stock]))
+      const currentStoreName = allStores.find(s => s.id === storeId)?.name || 'Unknown'
+
+      const lowStockItems = allProducts
+        .map(p => ({
+          id: p.id,
+          itemId: p.itemId,
+          name: p.name,
+          cost: p.cost,
+          price: p.price,
+          currentStock: invMap.get(p.id) || 0,
+          restockQty: p.restockQty,
+          shop: currentStoreName
+        }))
+        .filter(item => item.currentStock < 11)
+      
+      setItems(lowStockItems)
     } catch (error) {
       console.error('Failed to fetch low stock items:', error)
     } finally {
@@ -96,19 +128,13 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
 
   const fetchStores = async () => {
     try {
-      const response = await fetch('/api/stores')
-      if (response.ok) {
-        const data = await response.json()
-        if (Array.isArray(data)) {
-          setStores(data)
-          // Default to the first shop if none selected
-          if (!selectedStore && data.length > 0) {
-            setSelectedStore(data[0])
-          }
-        }
-      }
+      const storesFromDb = await dexieDb.stores.toArray()
+      const shopsOnly = storesFromDb.filter(s => ALLOWED_SHOPS.includes(s.name as any))
+      setAllStores(shopsOnly)
+      return shopsOnly
     } catch (error) {
       console.error('Failed to fetch stores:', error)
+      return []
     }
   }
 
@@ -202,14 +228,14 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
               </div>
 
               <div className="min-w-[180px]">
-                <Select value={selectedStore} onValueChange={setSelectedStore}>
+                <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
                   <SelectTrigger className="h-10 bg-white">
                     <SelectValue placeholder="Select Store" />
                   </SelectTrigger>
                   <SelectContent>
-                    {stores.map((store) => (
-                      <SelectItem key={store} value={store}>
-                        {store}
+                    {allStores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

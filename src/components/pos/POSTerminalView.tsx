@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react'
-import { ShoppingCart, Search, Trash2, Printer, X } from 'lucide-react'
+import { ShoppingCart, Search, Trash2, Printer, X, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,10 @@ import { toast } from 'sonner'
 import ReceiptModal from '@/components/pos/ReceiptModal'
 import { handleIntegerKeyDown } from '@/lib/utils'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
+import { useProducts, useInventory, useUnsyncedCount, useStores } from '@/hooks/useOfflineData'
+import { useSync } from '@/components/providers/SyncProvider'
+import { dexieDb } from '@/lib/dexie'
+import { v4 as uuidv4 } from 'uuid'
 
 interface POSTerminalViewProps {
   stores: string[]
@@ -23,6 +27,7 @@ interface Product {
   itemId: number
   name: string
   price: number
+  cost: number
   storeStock: number
 }
 
@@ -31,9 +36,10 @@ interface CartItem extends Product {
 }
 
 interface Transaction {
-  id: number
+  id: string
+  transactionId: number
   date: string
-  store: string
+  storeId: string
   subtotal: number
   tax: number
   total: number
@@ -144,69 +150,163 @@ const CartItem = memo(({
 CartItem.displayName = 'CartItem'
 
 export default function POSTerminalView({ stores, currentStore, onStoreChange }: POSTerminalViewProps) {
-  const [products, setProducts] = useState<Product[]>([])
+  const { isOnline, isSyncing, sync } = useSync()
+  const unsyncedCount = useUnsyncedCount() || 0
+  
+  const allProducts = useProducts() || []
+  const storeInventory = useInventory() || [] // We'll filter this manually for now or use a better hook
+  const allStores = useStores() || []
+  
   const [cart, setCart] = useState<CartItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
+
+  const currentStoreId = useMemo(() => {
+    return allStores.find(s => s.name === currentStore)?.id
+  }, [allStores, currentStore])
   
-  // Refs for focusing and scrolling
-  const quantityInputs = useRef<{ [key: string]: HTMLInputElement | null }>({})
-  const cartContainerRef = useRef<HTMLDivElement | null>(null)
-  
-  // Refs for keyboard navigation
+  // Refs for keyboard navigation and scrolling
   const searchInputRef = useRef<HTMLInputElement>(null)
   const storeSelectRef = useRef<HTMLButtonElement>(null)
   const payButtonRef = useRef<HTMLButtonElement>(null)
+  const cartContainerRef = useRef<HTMLDivElement>(null)
+  const quantityInputs = useRef<Record<string, HTMLInputElement | null>>({})
 
-  // Fetch products function - defined early to avoid reference errors
-  const fetchProducts = async () => {
-    try {
-      const response = await fetch(`/api/inventory?store=${encodeURIComponent(currentStore)}`)
-      if (response.ok) {
-        const data = await response.json()
-        setProducts(data)
+  // Derived products for the current store
+  const products = useMemo(() => {
+    if (!currentStoreId) return []
+
+    return allProducts.map(p => {
+      const inv = storeInventory.find(i => i.productId === p.id && i.storeId === currentStoreId)
+      return {
+        ...p,
+        storeStock: inv ? inv.stock : 0
       }
-    } catch (error) {
-      console.error('Failed to fetch products:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+    })
+  }, [allProducts, storeInventory, currentStoreId])
 
-  // Process checkout function - defined early to avoid reference errors
+  // Process checkout function
   const processCheckout = async () => {
     if (cart.length === 0) {
       toast.error('Cart is empty!')
       return
     }
 
+    if (!currentStoreId) {
+      toast.error('Store ID not found!')
+      return
+    }
+
+    setLoading(true)
+    const transactionId = Math.floor(Math.random() * 1000000)
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0)
+    const tax = subtotal * 0.125
+    const total = subtotal + tax
+
+    const newTransaction = {
+      id: uuidv4(),
+      transactionId,
+      storeId: currentStoreId,
+      subtotal,
+      tax,
+      total,
+      createdAt: new Date(),
+      synced: 0
+    }
+
     try {
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          store: currentStore,
-          items: cart
-        })
+      // 1. Save to local Dexie first
+      await dexieDb.transaction('rw', dexieDb.transactions, dexieDb.transactionItems, dexieDb.inventories, async () => {
+        await dexieDb.transactions.add(newTransaction)
+        
+        const itemAdds = cart.map(item => ({
+          id: uuidv4(),
+          transactionId: newTransaction.id,
+          productId: item.id,
+          itemName: item.name,
+          itemPrice: item.price,
+          itemCost: item.cost, // Assuming cost is in Product
+          qty: item.qty
+        }))
+        
+        await dexieDb.transactionItems.bulkAdd(itemAdds)
+
+        // Update local inventory
+        for (const item of cart) {
+          const inv = await dexieDb.inventories
+            .where('[storeId+productId]')
+            .equals([currentStoreId, item.id])
+            .first()
+          
+          if (inv) {
+            await dexieDb.inventories.update(inv.id, {
+              stock: inv.stock - item.qty,
+              updatedAt: new Date()
+            })
+          }
+        }
       })
 
-      if (response.ok) {
-        const transaction = await response.json()
-        console.log('Checkout successful:', transaction)
-        setCart([])
-        fetchProducts()
-        setSelectedTransaction(transaction)
+      // 2. Try to sync if online
+      if (isOnline) {
+        try {
+          const response = await fetch('/api/transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...newTransaction,
+              items: cart
+            })
+          })
+
+          if (response.ok) {
+            const serverTx = await response.json()
+            await dexieDb.transactions.update(newTransaction.id, { synced: 1 })
+            setSelectedTransaction({ 
+              ...serverTx, 
+              transactionId: serverTx.transactionId || newTransaction.transactionId,
+              items: cart 
+            })
+          } else {
+            setSelectedTransaction({ 
+              ...newTransaction, 
+              transactionId: newTransaction.transactionId,
+              storeId: currentStoreId, 
+              date: newTransaction.createdAt.toISOString(), 
+              items: cart.map(i => ({ ...i, itemName: i.name, itemPrice: i.price })) 
+            } as any)
+            toast.info('Saved locally. Will sync later.')
+          }
+        } catch (e) {
+          setSelectedTransaction({ 
+            ...newTransaction, 
+            transactionId: newTransaction.transactionId,
+            storeId: currentStoreId, 
+            date: newTransaction.createdAt.toISOString(), 
+            items: cart.map(i => ({ ...i, itemName: i.name, itemPrice: i.price })) 
+          } as any)
+          toast.info('Saved locally. Will sync later.')
+        }
       } else {
-        const error = await response.json()
-        console.error('Checkout failed:', error)
-        toast.error(error.error || error.message || 'Checkout failed')
+        setSelectedTransaction({ 
+          ...newTransaction, 
+          transactionId: newTransaction.transactionId,
+          storeId: currentStoreId, 
+          date: newTransaction.createdAt.toISOString(), 
+          items: cart.map(i => ({ ...i, itemName: i.name, itemPrice: i.price })) 
+        } as any)
+        toast.info('Offline: Saved locally.')
       }
+
+      setCart([])
     } catch (error) {
-      console.error('Checkout exception:', error)
-      toast.error('Checkout failed due to a network or server error')
+      console.error('Checkout failed:', error)
+      toast.error('Checkout failed')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -219,7 +319,6 @@ export default function POSTerminalView({ stores, currentStore, onStoreChange }:
   })
 
   useEffect(() => {
-    fetchProducts()
     // Auto-focus search input on mount
     setTimeout(() => {
       searchInputRef.current?.focus()
@@ -443,7 +542,7 @@ export default function POSTerminalView({ stores, currentStore, onStoreChange }:
   }, [])
 
   return (
-    <div className="flex-1 flex min-h-0 overflow-hidden p-4 gap-4 bg-slate-50">
+    <div className="flex-1 flex min-h-0 overflow-hidden pt-0 px-2 pb-4 gap-4 bg-slate-50">
       {/* Products Section */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden gap-4">
         {/* Search and Store Selection */}
@@ -475,6 +574,33 @@ export default function POSTerminalView({ stores, currentStore, onStoreChange }:
               ))}
             </SelectContent>
           </Select>
+          
+          <div className="flex items-center gap-2 px-3 bg-white border border-slate-200 rounded-md shrink-0">
+            {isOnline ? (
+              <Wifi className="w-4 h-4 text-emerald-500" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-red-500" />
+            )}
+            <span className="text-xs font-medium text-slate-600 uppercase">
+              {isOnline ? 'Online' : 'Offline'}
+            </span>
+            <div className="w-px h-4 bg-slate-200 mx-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => sync()}
+              disabled={isSyncing || !isOnline}
+              className="h-8 w-8 p-0"
+              title="Sync now"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            </Button>
+            {unsyncedCount > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 flex items-center justify-center p-0 text-[10px]">
+                {unsyncedCount}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Scrollable Item Cards Container */}

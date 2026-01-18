@@ -13,7 +13,7 @@
     "noEmit": true,
     "noImplicitAny": false,
     "esModuleInterop": true,
-    "module": "CommonJS",
+    "module": "esnext",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
@@ -29,7 +29,7 @@
       ]
     },
     "outDir": "prisma/dist",
-    "moduleResolution": "node"
+    "moduleResolution": "bundler"
   },
   "include": [
     "next-env.d.ts",

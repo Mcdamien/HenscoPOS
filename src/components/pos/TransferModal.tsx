@@ -16,6 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
 import { handleIntegerKeyDown } from '@/lib/utils'
+import { dexieDb } from '@/lib/dexie'
+import { useSync } from '@/components/providers/SyncProvider'
+import { v4 as uuidv4 } from 'uuid'
 
 interface Product {
   id: string
@@ -123,6 +126,8 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
     toast.success(`Applied preset ${qty} to items with sufficient stock`)
   }
 
+  const { isOnline, sync } = useSync()
+
   const handleSubmit = async () => {
     const itemsToTransfer = Array.from(checkedIds)
       .map(id => ({
@@ -144,23 +149,48 @@ export default function TransferModal({ isOpen, onClose, stores, currentStore, p
     setSubmitting(true)
 
     try {
-      const response = await fetch('/api/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: itemsToTransfer,
-          targetStore
+      const transferData = {
+        items: itemsToTransfer,
+        targetStore
+      }
+
+      // 1. Save locally to Dexie
+      const newTransferId = uuidv4()
+      await dexieDb.transaction('rw', dexieDb.stockTransfers, dexieDb.stockTransferItems, dexieDb.syncQueue, async () => {
+        await dexieDb.stockTransfers.add({
+          id: newTransferId,
+          transferId: Math.floor(Math.random() * 1000000), // Temporary ID
+          fromStore: 'Warehouse',
+          toStore: targetStore,
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+
+        await dexieDb.stockTransferItems.bulkAdd(itemsToTransfer.map(item => ({
+          id: uuidv4(),
+          stockTransferId: newTransferId,
+          productId: item.productId,
+          itemName: products.find(p => p.id === item.productId)?.name || 'Unknown',
+          qty: item.qty
+        })))
+
+        // 2. Add to Sync Queue
+        await dexieDb.syncQueue.add({
+          table: 'stockTransfers',
+          action: 'create',
+          data: transferData,
+          timestamp: Date.now()
         })
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        toast.success(`Transfer #${data.transferId} completed successfully!`)
-        handleClose()
-        onSuccess()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || 'Transfer failed')
+      toast.success('Transfer saved locally!')
+      handleClose()
+      onSuccess()
+
+      // 3. Try to sync immediately if online
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
       console.error('Transfer failed:', error)

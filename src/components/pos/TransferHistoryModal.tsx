@@ -13,6 +13,9 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { formatDateDDMMYYYY } from '@/lib/utils'
+import { useTransfers, useTransferItems } from '@/hooks/useOfflineData'
+import { dexieDb } from '@/lib/dexie'
+import { useLiveQuery } from 'dexie-react-hooks'
 
 interface TransferHistoryModalProps {
   isOpen: boolean
@@ -38,35 +41,24 @@ interface TransferItem {
 }
 
 export default function TransferHistoryModal({ isOpen, onClose, expandTransferId, onRefresh }: TransferHistoryModalProps) {
-  const [transfers, setTransfers] = useState<Transfer[]>([])
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchTransfers()
-    }
-  }, [isOpen])
+  const transfers = useLiveQuery(async () => {
+    const ts = await dexieDb.stockTransfers.reverse().sortBy('updatedAt')
+    const results = await Promise.all(ts.map(async (t) => {
+      const items = await dexieDb.stockTransferItems.where('stockTransferId').equals(t.id).toArray()
+      return { ...t, items }
+    }))
+    return results
+  }) || []
+
+  const loading = false
 
   useEffect(() => {
     if (expandTransferId && transfers.length > 0) {
       setExpandedIds(prev => new Set([...prev, expandTransferId]))
     }
-  }, [expandTransferId, transfers])
-
-  const fetchTransfers = async () => {
-    try {
-      const response = await fetch('/api/transfer')
-      if (response.ok) {
-        const data = await response.json()
-        setTransfers(data)
-      }
-    } catch (error) {
-      console.error('Failed to fetch transfers:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [expandTransferId, transfers.length])
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {

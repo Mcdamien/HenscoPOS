@@ -13,6 +13,9 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import ExcelJS from 'exceljs'
 import { toast } from 'sonner'
+import { dexieDb } from '@/lib/dexie'
+import { useSync } from '@/components/providers/SyncProvider'
+import { v4 as uuidv4 } from 'uuid'
 
 interface ImportProductsModalProps {
   isOpen: boolean
@@ -33,6 +36,8 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
     }
   }
 
+  const { isOnline, sync } = useSync()
+
   const handleImport = async () => {
     if (!file) return
 
@@ -40,11 +45,9 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
     try {
       const buffer = await file.arrayBuffer()
       const workbook = new ExcelJS.Workbook()
-      console.log('Uploaded file:', file)
-
+      
       try {
         await workbook.xlsx.load(buffer)
-        console.log('Workbook loaded successfully:', workbook)
       } catch (error) {
         console.error('Error loading workbook:', error)
         toast.error('Failed to load the Excel file. Please ensure it is a valid .xlsx file.')
@@ -59,10 +62,8 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
       }
 
       const worksheet = workbook.worksheets[0]
-      console.log('Loaded worksheet:', worksheet)
       const jsonData: any[] = []
       
-      // Read rows starting from row 2 (assuming row 1 is header)
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber > 1) {
           const rowData: Record<string, any> = {}
@@ -74,38 +75,64 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
         }
       })
 
-      // Map excel columns to expected API fields
-      // Assuming headers like "Name", "Cost", "Price", "Stock"
-      const products = jsonData.map((row: any) => ({
+      const productsToImport = jsonData.map((row: any) => ({
         name: row.Name || row.name || row.Product || row.product,
-        cost: row.Cost || row.cost || 0,
-        price: row.Price || row.price || 0,
-        stock: row.Stock || row.stock || row.Quantity || row.qty || 0
+        cost: parseFloat(row.Cost || row.cost || 0),
+        price: parseFloat(row.Price || row.price || 0),
+        stock: parseInt(row.Stock || row.stock || row.Quantity || row.qty || 0)
       })).filter(p => p.name)
 
-      if (products.length === 0) {
+      if (productsToImport.length === 0) {
         toast.error('No valid products found in the file')
         setImporting(false)
         return
       }
 
-      const response = await fetch('/api/products/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ products })
+      // 1. Update Dexie locally
+      const localResults = { created: 0, updated: 0, errors: 0 }
+      
+      await dexieDb.transaction('rw', dexieDb.products, dexieDb.syncQueue, async () => {
+        for (const p of productsToImport) {
+          const existing = await dexieDb.products.where('name').equals(p.name).first()
+          if (existing) {
+            await dexieDb.products.update(existing.id, {
+              cost: p.cost || existing.cost,
+              price: p.price || existing.price,
+              warehouseStock: existing.warehouseStock + p.stock,
+              updatedAt: new Date()
+            })
+            localResults.updated++
+          } else {
+            await dexieDb.products.add({
+              id: uuidv4(),
+              itemId: 0, // Server will assign real itemId
+              name: p.name,
+              cost: p.cost || 0,
+              price: p.price || 0,
+              warehouseStock: p.stock || 0,
+              restockQty: 10,
+              updatedAt: new Date()
+            })
+            localResults.created++
+          }
+        }
+
+        // 2. Add to Sync Queue
+        await dexieDb.syncQueue.add({
+          table: 'products',
+          action: 'bulk_create',
+          data: { products: productsToImport },
+          timestamp: Date.now()
+        })
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setResults({
-          created: data.created,
-          updated: data.updated,
-          errors: data.errors
-        })
-        toast.success('Import completed successfully!')
-        onSuccess()
-      } else {
-        toast.error('Failed to import products')
+      setResults(localResults)
+      toast.success('Products imported locally!')
+      onSuccess()
+
+      // 3. Try to sync if online
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
       console.error('Import error:', error)
@@ -128,20 +155,27 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
     ]
 
     try {
-      const response = await fetch('/api/inventory?store=Main%20Store')
-      if (!response.ok) {
-        throw new Error('Failed to fetch inventory items')
-      }
-
-      const inventoryItems = await response.json()
-      inventoryItems.forEach((item: any) => {
-        worksheet.addRow({
-          name: item.name,
-          cost: item.cost,
-          price: item.price,
-          stock: item.stock
+      // Use local Dexie data instead of API
+      const products = await dexieDb.products.toArray()
+      
+      if (products.length > 0) {
+        products.forEach((item: any) => {
+          worksheet.addRow({
+            name: item.name,
+            cost: item.cost,
+            price: item.price,
+            stock: 0 // Default to 0 for sample
+          })
         })
-      })
+      } else {
+        // Add a sample row if no products exist
+        worksheet.addRow({
+          name: 'Sample Product',
+          cost: 10,
+          price: 15,
+          stock: 100
+        })
+      }
 
       // Generate file and trigger download
       const buffer = await workbook.xlsx.writeBuffer()

@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { dexieDb } from '@/lib/dexie'
 
 interface Product {
   id: string
@@ -29,7 +30,7 @@ interface RestockModalProps {
   isOpen: boolean
   onClose: () => void
   product: Product | null
-  onConfirm: (productId: string, quantity: number, storeName?: string) => void
+  onConfirm: (productId: string, quantity: number, storeId: string) => void
 }
 
 // Field refs for keyboard navigation
@@ -39,10 +40,15 @@ interface RestockModalProps {
 // 3: Confirm button
 const FIELD_COUNT = 4
 
+interface Store {
+  id: string
+  name: string
+}
+
 export default function RestockModal({ isOpen, onClose, product, onConfirm }: RestockModalProps) {
   const [quantity, setQuantity] = useState(1)
-  const [stores, setStores] = useState<string[]>([])
-  const [selectedStore, setSelectedStore] = useState<string>('Warehouse')
+  const [allStores, setAllStores] = useState<Store[]>([])
+  const [selectedStoreId, setSelectedStoreId] = useState<string>('Warehouse')
   const [storeStock, setStoreStock] = useState<number | null>(null)
   const [loadingStock, setLoadingStock] = useState(false)
   
@@ -55,49 +61,52 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
   // Fetch stores
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/stores')
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            setStores(['Warehouse', ...data])
-          }
-        })
-        .catch(err => console.error('Failed to fetch stores:', err))
+      const fetchStores = async () => {
+        try {
+          const storesData = await dexieDb.stores.toArray()
+          setAllStores(storesData)
+        } catch (err) {
+          console.error('Failed to fetch stores:', err)
+        }
+      }
+      fetchStores()
     }
   }, [isOpen])
 
   // Fetch stock for selected store
   useEffect(() => {
-    if (isOpen && product && selectedStore) {
-      if (selectedStore === 'Warehouse') {
+    if (isOpen && product && selectedStoreId) {
+      if (selectedStoreId === 'Warehouse') {
         setStoreStock(product.currentStock)
         return
       }
 
-      setLoadingStock(true)
-      fetch(`/api/inventory?store=${encodeURIComponent(selectedStore)}`)
-        .then(res => res.json())
-        .then(data => {
-          const productInfo = data.find((p: any) => p.id === product.id)
-          if (productInfo) {
-            setStoreStock(productInfo.storeStock)
-          } else {
-            setStoreStock(0)
-          }
-        })
-        .catch(err => console.error('Failed to fetch store stock:', err))
-        .finally(() => setLoadingStock(false))
+      const fetchStock = async () => {
+        setLoadingStock(true)
+        try {
+          const inventory = await dexieDb.inventories
+            .where('[storeId+productId]')
+            .equals([selectedStoreId, product.id])
+            .first()
+          setStoreStock(inventory ? inventory.stock : 0)
+        } catch (err) {
+          console.error('Failed to fetch store stock:', err)
+        } finally {
+          setLoadingStock(false)
+        }
+      }
+      fetchStock()
     }
-  }, [isOpen, product, selectedStore])
+  }, [isOpen, product, selectedStoreId])
 
   // Memoized handleConfirm function
   const handleConfirm = useCallback(() => {
-    if (product) {
-      onConfirm(product.id, quantity, selectedStore)
+    if (product && selectedStoreId) {
+      onConfirm(product.id, quantity, selectedStoreId)
       setQuantity(1)
       onClose()
     }
-  }, [product, quantity, selectedStore, onConfirm, onClose])
+  }, [product, quantity, selectedStoreId, onConfirm, onClose])
 
   // Keyboard navigation hook
   const { focusField, handleKeyDown, registerField } = useKeyboardNavigation({
@@ -143,8 +152,8 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
               Target Store
             </Label>
             <Select 
-              value={selectedStore} 
-              onValueChange={setSelectedStore}
+              value={selectedStoreId} 
+              onValueChange={setSelectedStoreId}
             >
               <SelectTrigger 
                 ref={registerField(0)}
@@ -155,9 +164,10 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
                 <SelectValue placeholder="Select target store" />
               </SelectTrigger>
               <SelectContent>
-                {stores.map((store) => (
-                  <SelectItem key={store} value={store}>
-                    {store}
+                <SelectItem value="Warehouse">Warehouse</SelectItem>
+                {allStores.map((store) => (
+                  <SelectItem key={store.id} value={store.id}>
+                    {store.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -166,7 +176,9 @@ export default function RestockModal({ isOpen, onClose, product, onConfirm }: Re
 
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Stock at {selectedStore}</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                Stock at {selectedStoreId === 'Warehouse' ? 'Warehouse' : allStores.find(s => s.id === selectedStoreId)?.name || 'Store'}
+              </p>
               <p className="text-lg font-bold text-slate-900">
                 {loadingStock ? '...' : `${storeStock ?? product.currentStock} units`}
               </p>

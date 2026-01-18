@@ -194,8 +194,8 @@ export default function AccountingView() {
   }
 
   return (
-    <div className="p-8 h-full overflow-y-auto">
-      <div className="flex items-center justify-between mb-8">
+    <div className="pt-0 px-2 pb-8 h-full overflow-y-auto">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Accounting Module</h2>
         <Button variant="outline" className="flex items-center gap-2" onClick={() => setReportsModalOpen(true)}>
           <FileText className="w-4 h-4" />

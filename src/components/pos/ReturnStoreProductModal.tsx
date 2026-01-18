@@ -15,6 +15,10 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { handleIntegerKeyDown } from '@/lib/utils'
+import { dexieDb } from '@/lib/dexie'
+import { useSync } from '@/components/providers/SyncProvider'
+import { v4 as uuidv4 } from 'uuid'
+import { useStores } from '@/hooks/useOfflineData'
 
 interface Product {
   id: string
@@ -43,6 +47,10 @@ export default function ReturnStoreProductModal({
 }: ReturnStoreProductModalProps) {
   const [qty, setQty] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const allStores = useStores() || []
+
+  // Find store ID for the current store name
+  const currentStoreId = allStores.find(s => s.name === currentStore)?.id
 
   // Reset qty when modal opens
   useEffect(() => {
@@ -51,10 +59,15 @@ export default function ReturnStoreProductModal({
     }
   }, [isOpen])
 
+  const { isOnline, sync } = useSync()
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!product) return
+    if (!product || !currentStoreId) {
+      if (!currentStoreId) toast.error('Store ID not found')
+      return
+    }
 
     const returnQty = parseInt(qty) || 0
     
@@ -72,28 +85,52 @@ export default function ReturnStoreProductModal({
     setSubmitting(true)
 
     try {
-      const response = await fetch('/api/inventory/return', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          storeId: currentStore,
-          qty: returnQty,
-          returnedBy: 'Store User'
+      const returnData = {
+        productId: product.id,
+        storeId: currentStoreId,
+        changeType: 'return',
+        qty: returnQty,
+        returnedBy: 'Store User'
+      }
+
+      // 1. Save locally to Dexie
+      const newChangeId = uuidv4()
+      await dexieDb.transaction('rw', dexieDb.pendingChanges, dexieDb.syncQueue, async () => {
+        await dexieDb.pendingChanges.add({
+          id: newChangeId,
+          productId: returnData.productId,
+          storeId: returnData.storeId,
+          changeType: returnData.changeType,
+          qty: returnData.qty,
+          status: 'pending',
+          requestedBy: returnData.returnedBy,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+
+        // 2. Add to Sync Queue
+        await dexieDb.syncQueue.add({
+          table: 'pendingChanges',
+          action: 'create',
+          data: {
+            ...returnData,
+            requestedBy: returnData.returnedBy
+          },
+          timestamp: Date.now()
         })
       })
 
-      if (response.ok) {
-        toast.success(`Return request submitted for warehouse approval!`)
-        onClose()
-        onSuccess()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || error.message || 'Failed to submit return request')
+      toast.success(`Return request saved locally!`)
+      onClose()
+      onSuccess()
+
+      // 3. Try to sync immediately if online
+      if (isOnline) {
+        sync()
       }
     } catch (error) {
-      console.error('Failed to process return:', error)
-      toast.error('Failed to process return')
+      console.error('Failed to save return:', error)
+      toast.error('Failed to save return')
     } finally {
       setSubmitting(false)
     }
