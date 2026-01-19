@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,7 @@ interface Store {
 }
 
 export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }: RestockItemsModalProps) {
+  const isMobile = useIsMobile()
   const [items, setItems] = useState<RestockItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -162,31 +164,36 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
+      <DialogContent className={cn(
+        "max-w-4xl flex flex-col p-0 overflow-hidden",
+        isMobile ? "w-full h-full max-h-screen rounded-none" : "max-h-[90vh]"
+      )}>
+        <DialogHeader className="px-4 md:px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100">
-                <Package className="w-5 h-5 text-amber-600" />
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-xl bg-amber-100">
+                <Package className="w-4 h-4 md:w-5 md:h-5 text-amber-600" />
               </div>
-              <DialogTitle className="text-xl">Items Needing Restock</DialogTitle>
+              <DialogTitle className="text-lg md:text-xl">Low Stock Items</DialogTitle>
             </div>
-            <div className="flex items-center gap-2 mr-8">
-              {outOfStockCount > 0 && (
-                <Badge variant="destructive" className="animate-pulse">
-                  {outOfStockCount} Out of Stock
-                </Badge>
-              )}
-              {lowStockCount > 0 && (
-                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                  {lowStockCount} Low Stock
-                </Badge>
-              )}
-            </div>
+            {!isMobile && (
+              <div className="flex items-center gap-2 mr-8">
+                {outOfStockCount > 0 && (
+                  <Badge variant="destructive" className="animate-pulse text-[10px] md:text-xs">
+                    {outOfStockCount} Out
+                  </Badge>
+                )}
+                {lowStockCount > 0 && (
+                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px] md:text-xs">
+                    {lowStockCount} Low
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
         </DialogHeader>
 
-        <div className="bg-slate-50 border-b px-6 py-4 shrink-0">
+        <div className="bg-slate-50 border-b px-4 md:px-6 py-4 shrink-0 space-y-4">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div className="relative flex-1 w-full max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -195,17 +202,17 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white"
+                className="pl-10 bg-white h-11"
               />
             </div>
             
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex bg-white border rounded-lg p-1">
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+              <div className="flex bg-white border rounded-lg p-1 w-full sm:w-auto">
                 <Button
                   variant={filter === 'all' ? 'secondary' : 'ghost'}
                   size="sm"
                   onClick={() => setFilter('all')}
-                  className="h-8 px-3 rounded-md"
+                  className="flex-1 sm:flex-none h-9 md:h-8 px-3 rounded-md text-xs"
                 >
                   All
                 </Button>
@@ -213,7 +220,7 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
                   variant={filter === 'out' ? 'destructive' : 'ghost'}
                   size="sm"
                   onClick={() => setFilter('out')}
-                  className={cn("h-8 px-3 rounded-md", filter === 'out' ? "" : "text-red-600")}
+                  className={cn("flex-1 sm:flex-none h-9 md:h-8 px-3 rounded-md text-xs", filter === 'out' ? "" : "text-red-600")}
                 >
                   Out
                 </Button>
@@ -221,15 +228,15 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
                   variant={filter === 'low' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setFilter('low')}
-                  className={cn("h-8 px-3 rounded-md", filter === 'low' ? "bg-amber-600 hover:bg-amber-700" : "text-amber-600")}
+                  className={cn("flex-1 sm:flex-none h-9 md:h-8 px-3 rounded-md text-xs", filter === 'low' ? "bg-amber-600 hover:bg-amber-700" : "text-amber-600")}
                 >
                   Low
                 </Button>
               </div>
 
-              <div className="min-w-[180px]">
+              <div className="w-full sm:min-w-[180px]">
                 <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
-                  <SelectTrigger className="h-10 bg-white">
+                  <SelectTrigger className="h-11 md:h-10 bg-white">
                     <SelectValue placeholder="Select Store" />
                   </SelectTrigger>
                   <SelectContent>
@@ -254,10 +261,10 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
           ) : filteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-20 text-slate-400">
               <Package className="w-12 h-12 mb-4 opacity-20" />
-              <p className="text-lg font-medium">All items are sufficiently stocked</p>
+              <p className="text-lg font-medium">No items found</p>
               <p className="text-sm">Try changing filters or selecting another store</p>
             </div>
-          ) : (
+          ) : !isMobile ? (
             <Table>
               <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                 <TableRow>
@@ -294,19 +301,48 @@ export default function RestockItemsModal({ isOpen, onClose, onRestockComplete }
                 ))}
               </TableBody>
             </Table>
+          ) : (
+            <div className="p-4 space-y-3">
+              {filteredItems.map((item) => (
+                <div key={item.id} className="border rounded-lg p-3 bg-white shadow-sm space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-900 truncate">{item.name}</span>
+                      <span className="text-[10px] font-mono text-slate-500">ID: #{item.itemId}</span>
+                    </div>
+                    <Badge className={cn(
+                      "font-bold",
+                      item.currentStock === 0 
+                        ? 'bg-red-50 text-red-700 border-red-100' 
+                        : 'bg-amber-50 text-amber-700 border-amber-100'
+                    )}>
+                      {item.currentStock} units
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center text-sm pt-1 border-t border-slate-50">
+                    <span className="font-medium text-slate-700">{formatCurrency(item.price)}</span>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                      <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                      {item.shop}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-slate-50 shrink-0">
+        <DialogFooter className="px-4 md:px-6 py-4 border-t bg-slate-50 shrink-0">
           <div className="flex items-center justify-between w-full">
-            <p className="text-sm text-slate-500 font-medium">
+            <p className="text-xs md:text-sm text-slate-500 font-medium">
               Showing <span className="text-slate-900 font-bold">{filteredItems.length}</span> items
             </p>
-            <Button variant="outline" onClick={onClose} className="px-8 shadow-sm">
+            <Button variant="outline" onClick={onClose} className="px-6 md:px-8 shadow-sm h-10">
               Close
             </Button>
           </div>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   )

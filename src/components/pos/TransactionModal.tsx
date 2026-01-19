@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Plus, TrendingUp, TrendingDown, Banknote, CreditCard, Briefcase, CheckSquare, Square, X } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   Dialog,
   DialogContent,
@@ -181,6 +182,7 @@ const generateAccountCode = (type: 'income' | 'expenditure' | 'asset' | 'liabili
 }
 
 export default function TransactionModal({ isOpen, onClose, onSuccess, type }: TransactionModalProps) {
+  const isMobile = useIsMobile()
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     description: '',
@@ -218,7 +220,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
     switch (type) {
       case 'income':
         return {
-          title: 'Add Income Transaction',
+          title: 'Add Income',
           icon: TrendingUp,
           iconColor: 'text-green-600',
           placeholder: 'Enter income description...',
@@ -226,7 +228,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
         }
       case 'expenditure':
         return {
-          title: 'Add Expenditure Transaction',
+          title: 'Add Expenditure',
           icon: TrendingDown,
           iconColor: 'text-red-600',
           placeholder: 'Enter expense description...',
@@ -234,7 +236,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
         }
       case 'asset':
         return {
-          title: 'Add Asset Transaction',
+          title: 'Add Asset',
           icon: Banknote,
           iconColor: 'text-blue-600',
           placeholder: 'Enter asset description...',
@@ -242,7 +244,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
         }
       case 'liability':
         return {
-          title: 'Add Liability Transaction',
+          title: 'Add Liability',
           icon: CreditCard,
           iconColor: 'text-orange-600',
           placeholder: 'Enter liability description...',
@@ -250,7 +252,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
         }
       case 'equity':
         return {
-          title: 'Add Equity Transaction',
+          title: 'Add Equity',
           icon: Briefcase,
           iconColor: 'text-purple-600',
           placeholder: 'Enter equity description...',
@@ -366,7 +368,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
         credit: parseFloat(formData.credit) || 0
       }
 
-      toast.success(`${config.title.split(' ')[2]} added successfully!`)
+      toast.success(`${config.title.split(' ')[1]} added successfully!`)
       onSuccess(transaction)
       handleClose()
     } catch (error: any) {
@@ -400,15 +402,18 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
+      <DialogContent className={cn(
+        "max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden transition-all duration-300",
+        isMobile && "max-w-none w-full h-full max-h-none rounded-none"
+      )}>
+        <DialogHeader className="px-4 py-4 md:px-6 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Icon className={`w-5 h-5 ${config.iconColor}`} />
-            {config.title}
+            <Icon className={cn("w-5 h-5", config.iconColor)} />
+            {isMobile ? config.title : `${config.title} Transaction`}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <form id="transaction-form" onSubmit={handleSubmit} className="space-y-4">
             {/* Date Field - Keep as is */}
             <div>
@@ -419,6 +424,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 required
+                className="h-11"
               />
             </div>
 
@@ -429,7 +435,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
                 value={formData.account}
                 onValueChange={(value) => setFormData({ ...formData, account: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="Select account type..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -457,27 +463,27 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
                 <Input
                   id="otherAccount"
                   type="text"
-                  placeholder="Enter unique account name if not listed..."
+                  placeholder="Enter unique account name..."
                   value={formData.otherAccount}
                   onChange={(e) => {
                     setFormData({ ...formData, otherAccount: e.target.value })
                     setOtherAccountTouched(true)
                   }}
                   onBlur={() => setOtherAccountTouched(false)}
-                  className="pr-10"
+                  className="pr-10 h-11"
                 />
                 {formData.otherAccount && (
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, otherAccount: '' })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                Use this for accounts not listed above. New accounts are automatically saved and appear in dropdown for next transaction.
+              <p className="text-[10px] md:text-xs text-slate-500 mt-1">
+                New accounts are automatically saved for next transaction.
               </p>
             </div>
 
@@ -491,13 +497,17 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 required
+                className="h-11"
               />
             </div>
 
             {/* Debit and Credit Fields with Gray-out Logic */}
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+            <div className="space-y-4 pt-2">
+              <div className={cn(
+                "grid gap-4",
+                isMobile ? "grid-cols-1" : "grid-cols-2"
+              )}>
+                <div className={cn(isMobile && isDebitDisabled && "hidden")}>
                   <Label htmlFor="debit" className={cn(isDebitDisabled && "text-slate-400")}>
                     Debit (GHS)
                   </Label>
@@ -513,13 +523,16 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
                     onChange={(e) => setFormData({ ...formData, debit: handleNumberChange(e.target.value) })}
                     onKeyDown={handleNumberKeyDown}
                     disabled={isDebitDisabled}
-                    className={cn(isDebitDisabled && "bg-slate-50 text-slate-400")}
+                    className={cn(
+                      "h-11",
+                      isDebitDisabled && "bg-slate-50 text-slate-400"
+                    )}
                   />
-                  <p className="text-xs text-slate-500 mt-1">
-                    {isDebitDefault ? "Money coming in" : "Default disabled for this account type"}
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    {isDebitDefault ? "Money coming in" : "Default disabled"}
                   </p>
                 </div>
-                <div>
+                <div className={cn(isMobile && isCreditDisabled && "hidden")}>
                   <Label htmlFor="credit" className={cn(isCreditDisabled && "text-slate-400")}>
                     Credit (GHS)
                   </Label>
@@ -535,56 +548,69 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, type }: T
                     onChange={(e) => setFormData({ ...formData, credit: handleNumberChange(e.target.value) })}
                     onKeyDown={handleNumberKeyDown}
                     disabled={isCreditDisabled}
-                    className={cn(isCreditDisabled && "bg-slate-50 text-slate-400")}
+                    className={cn(
+                      "h-11",
+                      isCreditDisabled && "bg-slate-50 text-slate-400"
+                    )}
                   />
-                  <p className="text-xs text-slate-500 mt-1">
-                    {isCreditDefault ? "Money going out" : "Default disabled for this account type"}
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    {isCreditDefault ? "Money going out" : "Default disabled"}
                   </p>
                 </div>
               </div>
 
               {/* Override Checkbox */}
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setOverrideGrayOut(!overrideGrayOut)}
-                  className="flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900"
+                  className="flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900 py-1"
                 >
                   {overrideGrayOut ? (
-                    <CheckSquare className="w-4 h-4 text-blue-600" />
+                    <CheckSquare className="w-5 h-5 text-blue-600" />
                   ) : (
-                    <Square className="w-4 h-4 text-slate-400" />
+                    <Square className="w-5 h-5 text-slate-400" />
                   )}
-                  <span className="font-medium">Override & Enable Both Fields</span>
+                  <span className="font-medium">Override Fields</span>
                 </button>
               </div>
-              <p className="text-xs text-slate-500 pl-6">
-                Check this to allow entry in both debit and credit fields when needed
-              </p>
             </div>
 
             {/* Total Display */}
-            <div className="bg-slate-50 p-4 rounded-lg">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-700">Total:</span>
-                <span className={`text-lg font-bold ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className="text-sm font-medium text-slate-700">Net Total:</span>
+                <span className={cn(
+                  "text-xl font-black",
+                  total >= 0 ? 'text-green-600' : 'text-red-600'
+                )}>
                   {formatCurrency(Math.abs(total))}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-1">
                 {total >= 0 ? 'Net Debit' : 'Net Credit'}
               </p>
             </div>
           </form>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-slate-50 shrink-0">
-          <Button type="button" variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form="transaction-form" disabled={submitting}>
-            {submitting ? 'Saving...' : 'Save Transaction'}
-          </Button>
+        <DialogFooter className="px-4 py-4 md:px-6 border-t bg-slate-50 shrink-0">
+          <div className={cn(
+            "flex gap-3 w-full",
+            isMobile && "flex-col"
+          )}>
+            <Button type="button" variant="outline" onClick={handleClose} className="flex-1 h-11 font-bold order-2 md:order-1">
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              form="transaction-form" 
+              disabled={submitting}
+              className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 font-bold shadow-sm order-1 md:order-2"
+            >
+              {submitting ? 'Saving...' : 'Save Transaction'}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

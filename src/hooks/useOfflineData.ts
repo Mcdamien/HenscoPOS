@@ -48,7 +48,13 @@ export function usePendingChanges() {
 }
 
 export function useTransfers() {
-  return useLiveQuery(() => dexieDb.stockTransfers.reverse().sortBy('updatedAt'))
+  return useLiveQuery(async () => {
+    const transfers = await dexieDb.stockTransfers.reverse().sortBy('updatedAt')
+    return Promise.all(transfers.map(async (t) => {
+      const items = await dexieDb.stockTransferItems.where('stockTransferId').equals(t.id).toArray()
+      return { ...t, items }
+    }))
+  })
 }
 
 export function useTransferItems(transferId?: string) {
@@ -61,5 +67,11 @@ export function useTransferItems(transferId?: string) {
 }
 
 export function useAdditions() {
-  return useLiveQuery(() => dexieDb.inventoryAdditions.reverse().sortBy('updatedAt'))
+  return useLiveQuery(async () => {
+    const additions = await dexieDb.inventoryAdditions.reverse().sortBy('updatedAt')
+    return Promise.all(additions.map(async (a) => {
+      const items = await dexieDb.inventoryAdditionItems.where('inventoryAdditionId').equals(a.id).toArray()
+      return { ...a, items }
+    }))
+  })
 }

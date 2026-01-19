@@ -29,6 +29,7 @@ import { cn, handleNumberKeyDown, handleIntegerKeyDown } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { dexieDb } from '@/lib/dexie'
 import { useSync } from '@/components/providers/SyncProvider'
 import { v4 as uuidv4 } from 'uuid'
@@ -93,6 +94,7 @@ function useDebounce<T>(value: T, delay: number): T {
 const FIELD_COUNT = 7
 
 export default function AddInventoryModal({ isOpen, onClose, onSuccess, products }: AddInventoryModalProps) {
+  const isMobile = useIsMobile()
   const [items, setItems] = useState<InventoryItem[]>([])
   const [currentItem, setCurrentItem] = useState({
     name: '',
@@ -312,20 +314,23 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
+      <DialogContent className={cn(
+        "max-w-5xl flex flex-col p-0 overflow-hidden",
+        isMobile ? "w-full h-full max-h-screen rounded-none" : "max-h-[90vh]"
+      )}>
+        <DialogHeader className="px-4 md:px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between w-full">
             <div className="flex flex-col gap-1">
-              <DialogTitle className="flex items-center gap-2 text-xl">
-                <Package className="w-6 h-6 text-emerald-600" />
+              <DialogTitle className="flex items-center gap-2 text-lg md:text-xl">
+                <Package className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
                 Add Inventory Batch
               </DialogTitle>
-              <div className="flex items-center gap-3 text-xs font-medium">
-                <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                  <Calendar className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs font-medium">
+                <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 md:px-2 py-0.5 rounded">
+                  <Calendar className="w-3 md:w-3.5 h-3 md:h-3.5" />
                   {today}
                 </span>
-                <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 font-mono">
+                <span className="text-emerald-600 bg-emerald-50 px-1.5 md:px-2 py-0.5 rounded border border-emerald-100 font-mono">
                   REF: {inventoryId}
                 </span>
               </div>
@@ -333,8 +338,8 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 flex-shrink-0">
             <div className="md:col-span-2 space-y-4">
               <div className="border rounded-xl p-4 bg-slate-50/50 space-y-4">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -342,8 +347,8 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
                   Add Item
                 </h3>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
-                  <div className="lg:col-span-2 space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                  <div className="md:col-span-2 lg:col-span-2 space-y-2">
                     <Label htmlFor="name">Item Name</Label>
                     <Popover open={open} onOpenChange={setOpen}>
                       <PopoverTrigger asChild>
@@ -351,7 +356,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
                           ref={registerField(0)}
                           variant="outline"
                           role="combobox"
-                          className="w-full justify-between font-normal bg-white"
+                          className="w-full justify-between font-normal bg-white h-11"
                           onKeyDown={(e) => {
                             handleKeyDown(e, 0)
                             if (e.key === 'Enter') {
@@ -367,12 +372,8 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
                       <PopoverContent 
                         className="w-[--radix-popover-trigger-width] p-0" 
                         align="start"
-                        onOpenAutoFocus={(e) => {
-                          const input = document.querySelector('[cmdk-input]') as HTMLInputElement
-                          if (input) {
-                            setTimeout(() => input.focus(), 0)
-                          }
-                        }}
+                        side="bottom"
+                        avoidCollisions={true}
                       >
                         <Command>
                           <CommandInput
@@ -389,7 +390,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
                               }
                             }}
                           />
-                          <CommandList>
+                          <CommandList className={isMobile ? "max-h-[200px]" : "max-h-[300px]"}>
                             <CommandEmpty>No existing product found. Type to add as new.</CommandEmpty>
                             <CommandGroup heading="Existing Products">
                               {filteredProducts.map((product) => (
@@ -420,7 +421,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
                       value={currentItem.cost}
                       onChange={(e) => setCurrentItem({ ...currentItem, cost: e.target.value })}
                       onKeyDown={handleCostKeyDown}
-                      className="bg-white"
+                      className="bg-white h-11"
                     />
                   </div>
 
@@ -435,12 +436,12 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
                       value={currentItem.price}
                       onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })}
                       onKeyDown={handlePriceKeyDown}
-                      className="bg-white"
+                      className="bg-white h-11"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                   <div className="space-y-2 lg:col-span-1">
                     <Label htmlFor="stock">Quantity</Label>
                     <Input
@@ -452,7 +453,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
                       value={currentItem.stock}
                       onChange={(e) => setCurrentItem({ ...currentItem, stock: e.target.value })}
                       onKeyDown={handleStockKeyDown}
-                      className="bg-white font-bold"
+                      className="bg-white font-bold h-11"
                     />
                   </div>
 
@@ -461,7 +462,7 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
                       ref={registerField(4)}
                       type="button"
                       variant="outline"
-                      className="w-full border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 shadow-sm"
+                      className="w-full h-11 border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 shadow-sm"
                       onClick={handleAddMore}
                       onKeyDown={(e) => handleKeyDown(e, 4)}
                     >
@@ -474,17 +475,17 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
             </div>
 
             <div className="space-y-4">
-              <div className="border rounded-xl p-4 bg-emerald-50/30 border-emerald-100 flex flex-col justify-between h-full">
+              <div className="border rounded-xl p-4 bg-emerald-50/30 border-emerald-100 flex flex-col justify-between h-full min-h-[120px]">
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Batch Summary</p>
-                  <h4 className="text-2xl font-bold text-slate-900">
+                  <p className="text-[10px] md:text-xs font-medium text-emerald-600 uppercase tracking-wider">Batch Summary</p>
+                  <h4 className="text-xl md:text-2xl font-bold text-slate-900">
                     GHS {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </h4>
-                  <p className="text-sm text-slate-500">Total Investment Value</p>
+                  <p className="text-xs md:text-sm text-slate-500">Total Investment Value</p>
                 </div>
                 
-                <div className="pt-4 mt-4 border-t border-emerald-100">
-                  <div className="flex justify-between items-center text-sm">
+                <div className="pt-3 md:pt-4 mt-3 md:mt-4 border-t border-emerald-100">
+                  <div className="flex justify-between items-center text-xs md:text-sm">
                     <span className="text-slate-500">Total Items:</span>
                     <span className="font-bold text-slate-900">{items.length + (currentItem.name && currentItem.stock ? 1 : 0)}</span>
                   </div>
@@ -493,70 +494,129 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
             </div>
           </div>
 
-          <div className="border rounded-md overflow-hidden flex-1 flex flex-col min-h-0 shadow-sm">
+          <div className="border rounded-md overflow-hidden flex-1 flex flex-col min-h-[300px] shadow-sm">
             <div className="flex-1 overflow-y-auto">
-              <Table>
-                <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
-                  <TableRow>
-                    <TableHead className="w-[40%]">Product Name</TableHead>
-                    <TableHead className="text-right">Unit Cost</TableHead>
-                    <TableHead className="text-right">Unit Price</TableHead>
-                    <TableHead className="text-center w-24">Qty</TableHead>
-                    <TableHead className="text-right">Subtotal</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.length === 0 ? (
+              {!isMobile ? (
+                <Table>
+                  <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-20 text-slate-400">
-                        <div className="flex flex-col items-center gap-2">
-                          <Package className="w-8 h-8 opacity-20" />
-                          <p>No items added to this batch yet</p>
-                        </div>
-                      </TableCell>
+                      <TableHead className="w-[40%]">Product Name</TableHead>
+                      <TableHead className="text-right">Unit Cost</TableHead>
+                      <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-center w-24">Qty</TableHead>
+                      <TableHead className="text-right">Subtotal</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-20 text-slate-400">
+                          <div className="flex flex-col items-center gap-2">
+                            <Package className="w-8 h-8 opacity-20" />
+                            <p>No items added to this batch yet</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      items.map((item) => (
+                        <TableRow key={item.id} className="hover:bg-slate-50/50">
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell className="text-right">GHS {parseFloat(item.cost).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">GHS {parseFloat(item.price).toFixed(2)}</TableCell>
+                          <TableCell className="text-center font-bold text-slate-700">{item.stock}</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            GHS {(parseFloat(item.cost) * parseInt(item.stock)).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                              onClick={() => handleRemoveItem(item.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {items.length === 0 ? (
+                    <div className="text-center py-10 text-slate-400">
+                      <Package className="w-8 h-8 opacity-20 mx-auto mb-2" />
+                      <p>No items added yet</p>
+                    </div>
                   ) : (
                     items.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-slate-50/50">
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell className="text-right">GHS {parseFloat(item.cost).toFixed(2)}</TableCell>
-                        <TableCell className="text-right">GHS {parseFloat(item.price).toFixed(2)}</TableCell>
-                        <TableCell className="text-center font-bold text-slate-700">{item.stock}</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          GHS {(parseFloat(item.cost) * parseInt(item.stock)).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-center">
+                      <div key={item.id} className="border rounded-lg p-3 bg-white shadow-sm space-y-2">
+                        <div className="flex justify-between items-start">
+                          <span className="font-bold text-slate-900 truncate flex-1">{item.name}</span>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                            className="h-7 w-7 text-red-500 hover:bg-red-50"
                             onClick={() => handleRemoveItem(item.id)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="flex flex-col">
+                            <span className="text-slate-500 text-xs">Unit Cost</span>
+                            <span>GHS {parseFloat(item.cost).toFixed(2)}</span>
+                          </div>
+                          <div className="flex flex-col text-right">
+                            <span className="text-slate-500 text-xs">Quantity</span>
+                            <span className="font-bold">{item.stock}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-slate-500 text-xs">Unit Price</span>
+                            <span>GHS {parseFloat(item.price).toFixed(2)}</span>
+                          </div>
+                          <div className="flex flex-col text-right">
+                            <span className="text-slate-500 text-xs">Subtotal</span>
+                            <span className="font-bold text-emerald-600">
+                              GHS {(parseFloat(item.cost) * parseInt(item.stock)).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     ))
                   )}
-                </TableBody>
-              </Table>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-slate-50 shrink-0 sm:flex-row flex-col gap-4">
-          <div className="flex items-center justify-between w-full">
+        <DialogFooter className={cn(
+          "px-4 md:px-6 py-4 border-t bg-slate-50 shrink-0",
+          isMobile ? "flex flex-col gap-4" : "sm:flex-row"
+        )}>
+          <div className={cn(
+            "flex items-center w-full",
+            isMobile ? "flex-col gap-4" : "justify-between"
+          )}>
             <div className="text-sm font-medium text-slate-500">
               {items.length} items ready for processing
             </div>
-            <div className="flex gap-3">
+            <div className={cn(
+              "flex gap-3",
+              isMobile && "w-full"
+            )}>
               <Button
                 ref={registerField(5)}
                 variant="outline"
                 onClick={handleClose}
                 onKeyDown={(e) => handleKeyDown(e, 5)}
-                className="px-6"
+                className={cn(
+                  "px-6",
+                  isMobile && "flex-1"
+                )}
               >
                 Cancel
               </Button>
@@ -564,13 +624,16 @@ export default function AddInventoryModal({ isOpen, onClose, onSuccess, products
                 ref={registerField(6)}
                 disabled={submitting || (items.length === 0 && !currentItem.name)}
                 onClick={handleSubmit}
-                className="bg-emerald-600 hover:bg-emerald-700 min-w-[140px] shadow-sm"
+                className={cn(
+                  "bg-emerald-600 hover:bg-emerald-700 min-w-[140px] shadow-sm",
+                  isMobile && "flex-1"
+                )}
                 onKeyDown={(e) => handleKeyDown(e, 6)}
               >
                 {submitting ? 'Processing...' : (
                   <>
                     <Check className="w-4 h-4 mr-2" />
-                    Complete Addition
+                    Complete
                   </>
                 )}
               </Button>

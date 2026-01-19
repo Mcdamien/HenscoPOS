@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn, formatDateDDMMYYYY } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/use-mobile'
 import TransactionModal from './TransactionModal'
 import AccountingReportsModal from './AccountingReportsModal'
 
@@ -34,6 +35,7 @@ interface AccountEntry {
 }
 
 export default function AccountingView() {
+  const isMobile = useIsMobile()
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<AccountingStats>({
@@ -137,7 +139,10 @@ export default function AccountingView() {
   const AccountTable = ({ title, data, type }: { title: string, data: AccountEntry[], type: string }) => (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className={cn(
+          "flex items-center justify-between",
+          isMobile && "flex-col items-start gap-4"
+        )}>
           <CardTitle className="flex items-center gap-2">
             {type === 'income' && <TrendingUp className="w-5 h-5 text-green-600" />}
             {type === 'expenditure' && <TrendingDown className="w-5 h-5 text-red-600" />}
@@ -146,14 +151,19 @@ export default function AccountingView() {
             {type === 'equity' && <Briefcase className="w-5 h-5 text-purple-600" />}
             {title}
           </CardTitle>
-          <Button size="sm" onClick={() => openTransactionModal(type as 'income' | 'expenditure' | 'asset' | 'liability' | 'equity')} className="flex items-center gap-1">
+          <Button 
+            size="sm" 
+            onClick={() => openTransactionModal(type as 'income' | 'expenditure' | 'asset' | 'liability' | 'equity')} 
+            className={cn("flex items-center gap-1", isMobile && "w-full justify-center")}
+          >
             <Plus className="w-4 h-4" />
             Add Transaction
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <Table>
+      <CardContent className={isMobile ? "p-0" : ""}>
+        <div className="w-full overflow-x-auto">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
@@ -185,6 +195,7 @@ export default function AccountingView() {
             )}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   )
@@ -195,24 +206,36 @@ export default function AccountingView() {
 
   return (
     <div className="pt-0 px-2 pb-8 h-full overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
+      <div className={cn(
+        "flex items-center justify-between mb-4",
+        isMobile && "flex-col items-start gap-4"
+      )}>
         <h2 className="text-2xl font-semibold">Accounting Module</h2>
-        <Button variant="outline" className="flex items-center gap-2" onClick={() => setReportsModalOpen(true)}>
+        <Button 
+          variant="outline" 
+          className={cn("flex items-center gap-2", isMobile && "w-full justify-center")} 
+          onClick={() => setReportsModalOpen(true)}
+        >
           <FileText className="w-4 h-4" />
           Generate Report
         </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-      <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="income">Income</TabsTrigger>
-          <TabsTrigger value="expenditure">Expenditure</TabsTrigger>
-          <TabsTrigger value="assets">Assets</TabsTrigger>
-          <TabsTrigger value="liabilities">Liabilities</TabsTrigger>
-          <TabsTrigger value="equity">Equity</TabsTrigger>
-          <TabsTrigger value="profit-loss">Finance Summary</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-2 scrollbar-none">
+          <TabsList className={cn(
+            "inline-flex w-auto min-w-full",
+            !isMobile && "grid grid-cols-7 w-full"
+          )}>
+            <TabsTrigger value="overview" className="flex-1 whitespace-nowrap px-4">Overview</TabsTrigger>
+            <TabsTrigger value="income" className="flex-1 whitespace-nowrap px-4">Income</TabsTrigger>
+            <TabsTrigger value="expenditure" className="flex-1 whitespace-nowrap px-4">Expenditure</TabsTrigger>
+            <TabsTrigger value="assets" className="flex-1 whitespace-nowrap px-4">Assets</TabsTrigger>
+            <TabsTrigger value="liabilities" className="flex-1 whitespace-nowrap px-4">Liabilities</TabsTrigger>
+            <TabsTrigger value="equity" className="flex-1 whitespace-nowrap px-4">Equity</TabsTrigger>
+            <TabsTrigger value="profit-loss" className="flex-1 whitespace-nowrap px-4">Finance Summary</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-6">
           {/* Key Financial Metrics */}
@@ -273,8 +296,9 @@ export default function AccountingView() {
             <CardHeader>
               <CardTitle>Recent Accounting Entries</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
+            <CardContent className={isMobile ? "p-0" : ""}>
+              <div className="w-full overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
@@ -310,6 +334,7 @@ export default function AccountingView() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

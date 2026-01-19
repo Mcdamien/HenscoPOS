@@ -21,6 +21,7 @@ import {
 import ReturnStoreProductModal from '@/components/pos/ReturnStoreProductModal'
 import TransferConfirmationModal, { type Transfer } from '@/components/pos/TransferConfirmationModal'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { useProducts, useInventory, useTransfers, usePendingChanges, useTransferItems, useStores } from '@/hooks/useOfflineData'
 import { dexieDb } from '@/lib/dexie'
 import { useSync } from '@/components/providers/SyncProvider'
@@ -63,7 +64,10 @@ interface ApprovedReturn {
   }
 }
 
+import { useIsMobile } from '@/hooks/use-mobile'
+
 export default function StoreInventoryView({ stores, currentStore, onStoreChange }: StoreInventoryViewProps) {
+  const isMobile = useIsMobile()
   const allProducts = useProducts() || []
   const storeInventory = useInventory() || []
   const allTransfers = useTransfers() || []
@@ -423,13 +427,13 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
   }
 
   return (
-    <div className="pt-0 px-2 pb-8 h-full overflow-y-auto">
-      <Card>
-        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h3 className="text-lg font-semibold">Store Front Inventory</h3>
+    <div className="pt-0 px-2 md:px-4 pb-8 h-full overflow-y-auto">
+      <Card className="border-none md:border shadow-none md:shadow-sm">
+        <div className="p-4 md:p-6 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 md:gap-4">
+            <h3 className="text-lg font-semibold whitespace-nowrap">Shop Inventory</h3>
             <Select value={currentStore} onValueChange={onStoreChange}>
-              <SelectTrigger className="w-64">
+              <SelectTrigger className="w-full sm:w-64 bg-slate-50 border-slate-200">
                 <SelectValue placeholder="Select store" />
               </SelectTrigger>
               <SelectContent>
@@ -441,157 +445,275 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Pending Transfers Notification */}
+          
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {pendingTransfersCount > 0 && (
               <Button
                 variant="outline"
                 onClick={() => setShowConfirmationModal(true)}
-                className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 h-10 px-4 flex items-center justify-center"
               >
                 <Bell className="w-4 h-4 mr-2" />
-                Transfers
-                <Badge variant="destructive" className="ml-2">
+                <span className="md:hidden lg:inline">Transfers</span>
+                <Badge variant="destructive" className="ml-2 h-5 min-w-5 flex items-center justify-center p-0">
                   {pendingTransfersCount}
                 </Badge>
               </Button>
             )}
+            
             {selectedProductIds.size > 0 && (
               <Button 
                 variant="destructive" 
                 onClick={() => setShowBatchRemoveDialog(true)}
+                className="h-10 px-4 flex items-center justify-center"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                Remove Selected ({selectedProductIds.size})
+                <span className="hidden sm:inline">Remove</span> ({selectedProductIds.size})
               </Button>
             )}
-            {/* Search Input */}
-            <div className="relative">
+            
+            <div className="relative flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                placeholder="Search store stock..."
+                placeholder="Search inventory..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-72"
+                className="pl-10 w-full sm:w-64 h-10 bg-slate-50 border-slate-200"
               />
             </div>
           </div>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300"
-                  checked={filteredProducts.length > 0 && selectedProductIds.size === filteredProducts.length}
-                  onChange={toggleSelectAll}
-                />
-              </TableHead>
-              <TableHead>Item ID</TableHead>
-              <TableHead>Product Name</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        {isMobile ? (
+          <div className="p-4 space-y-4">
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-slate-500 py-8">
-                  Loading...
-                </TableCell>
-              </TableRow>
+              <div className="text-center text-slate-500 py-12">Loading inventory...</div>
             ) : filteredProducts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-slate-500 py-8">
-                  No products found
-                </TableCell>
-              </TableRow>
+              <div className="text-center text-slate-500 py-12">No products found</div>
             ) : (
-              filteredProducts.map((product) => {
-                const status = getStockStatus(product.storeStock)
-                const approvedReturnQty = getApprovedReturnQtyForProduct(product.id)
-                return (
-                  <TableRow key={product.id} className={`${product.isPendingRemoval ? 'opacity-60 bg-orange-50/30' : ''} ${selectedProductIds.has(product.id) ? 'bg-slate-50' : ''}`}>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-slate-300"
-                        checked={selectedProductIds.has(product.id)}
-                        onChange={() => toggleProductSelection(product.id)}
-                        disabled={product.isPendingRemoval}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">#{product.itemId}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{product.name}</span>
-                        {product.isPendingRemoval && (
-                          <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest mt-0.5">
-                            Pending Removal & Return
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{currentStore}</TableCell>
-                    <TableCell>{formatCurrency(product.price)}</TableCell>
-                    <TableCell>{product.storeStock}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {product.isPendingRemoval ? (
-                          <Badge className="bg-orange-100 text-orange-700">Pending Approval</Badge>
-                        ) : (
-                          <Badge className={status.className}>{status.label}</Badge>
-                        )}
-                        {approvedReturnQty > 0 && (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-pointer"
-                            onClick={() => confirmReturn(product.id)}
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            {approvedReturnQty} returned
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedProduct(product)
-                            setShowReturnModal(true)
-                          }}
-                          disabled={product.storeStock === 0 || product.isPendingRemoval}
-                        >
-                          <RotateCcw className="w-4 h-4 mr-1" />
-                          Return
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
-                          onClick={() => {
-                            setProductToRemove(product)
-                            setShowRemoveDialog(true)
-                          }}
+              <div className="grid grid-cols-1 gap-4">
+                {filteredProducts.map((product) => {
+                  const status = getStockStatus(product.storeStock)
+                  const approvedReturnQty = getApprovedReturnQtyForProduct(product.id)
+                  const isSelected = selectedProductIds.has(product.id)
+                  
+                  return (
+                    <Card 
+                      key={product.id} 
+                      className={cn(
+                        "p-4 border shadow-sm transition-all",
+                        product.isPendingRemoval ? "opacity-60 bg-orange-50/20" : "bg-white",
+                        isSelected && "border-emerald-500 ring-1 ring-emerald-500/20 shadow-emerald-50"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          className="w-5 h-5 rounded border-slate-300 mt-0.5 accent-emerald-600"
+                          checked={isSelected}
+                          onChange={() => toggleProductSelection(product.id)}
                           disabled={product.isPendingRemoval}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        />
+                        <div className="flex-1 space-y-3">
+                          <div className="flex justify-between items-start gap-2">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">#{product.itemId}</span>
+                                <Badge className={cn("text-[9px] px-1.5 h-4 uppercase font-black", status.className)}>
+                                  {status.label}
+                                </Badge>
+                              </div>
+                              <h4 className="font-bold text-slate-800 leading-tight">{product.name}</h4>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-black text-emerald-600 leading-none">{formatCurrency(product.price)}</p>
+                              <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Stock: {product.storeStock}</p>
+                            </div>
+                          </div>
+
+                          {product.isPendingRemoval && (
+                            <div className="bg-orange-50 border border-orange-100 rounded-lg p-2 flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 text-orange-600" />
+                              <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">
+                                Pending Removal Approval
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {approvedReturnQty > 0 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-[10px] font-bold bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                onClick={() => confirmReturn(product.id)}
+                              >
+                                <RotateCcw className="w-3 h-3 mr-1.5" />
+                                {approvedReturnQty} RETURNED - CLEAR ALERT
+                              </Button>
+                            )}
+                            
+                            <div className="flex gap-2 w-full mt-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 h-9 text-xs font-bold"
+                                onClick={() => {
+                                  setSelectedProduct(product)
+                                  setShowReturnModal(true)
+                                }}
+                                disabled={product.storeStock === 0 || product.isPendingRemoval}
+                              >
+                                <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                                Return Stock
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-12 h-9 text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                                onClick={() => {
+                                  setProductToRemove(product)
+                                  setShowRemoveDialog(true)
+                                }}
+                                disabled={product.isPendingRemoval}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/50">
+                  <TableHead className="w-12 text-center">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-slate-300 accent-emerald-600"
+                      checked={filteredProducts.length > 0 && selectedProductIds.size === filteredProducts.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-500 uppercase">Item ID</TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-500 uppercase">Product Name</TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-500 uppercase">Location</TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-500 uppercase">Price</TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-500 uppercase text-center">Stock</TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-500 uppercase">Status</TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-500 uppercase text-right px-6">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-slate-500 py-12">
+                      Loading products...
                     </TableCell>
                   </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+                ) : filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-slate-500 py-12">
+                      No products found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredProducts.map((product) => {
+                    const status = getStockStatus(product.storeStock)
+                    const approvedReturnQty = getApprovedReturnQtyForProduct(product.id)
+                    const isSelected = selectedProductIds.has(product.id)
+                    return (
+                      <TableRow key={product.id} className={cn(
+                        "transition-colors",
+                        product.isPendingRemoval && "opacity-60 bg-orange-50/10",
+                        isSelected && "bg-emerald-50/30"
+                      )}>
+                        <TableCell className="text-center">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-slate-300 accent-emerald-600"
+                            checked={isSelected}
+                            onChange={() => toggleProductSelection(product.id)}
+                            disabled={product.isPendingRemoval}
+                          />
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-slate-500">#{product.itemId}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800">{product.name}</span>
+                            {product.isPendingRemoval && (
+                              <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5" />
+                                Pending Removal & Return
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-medium text-slate-600">{currentStore}</TableCell>
+                        <TableCell className="font-bold text-slate-700">{formatCurrency(product.price)}</TableCell>
+                        <TableCell className="text-center font-black text-slate-800">{product.storeStock}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {product.isPendingRemoval ? (
+                              <Badge className="bg-orange-100 text-orange-700 border-none uppercase text-[10px] font-black">Pending Approval</Badge>
+                            ) : (
+                              <Badge className={cn("border-none uppercase text-[10px] font-black", status.className)}>{status.label}</Badge>
+                            )}
+                            {approvedReturnQty > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-pointer shadow-sm hover:bg-emerald-200 transition-colors"
+                                onClick={() => confirmReturn(product.id)}
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                {approvedReturnQty} RETURNED
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right px-6">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-[11px] font-bold"
+                              onClick={() => {
+                                setSelectedProduct(product)
+                                setShowReturnModal(true)
+                              }}
+                              disabled={product.storeStock === 0 || product.isPendingRemoval}
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                              Return
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 border-red-100"
+                              onClick={() => {
+                                setProductToRemove(product)
+                                setShowRemoveDialog(true)
+                              }}
+                              disabled={product.isPendingRemoval}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </Card>
 
       {/* Batch Remove Confirmation */}

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { X, Package, Store, RotateCcw } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -45,6 +47,7 @@ export default function ReturnStoreProductModal({
   currentStore,
   currentStoreStock
 }: ReturnStoreProductModalProps) {
+  const isMobile = useIsMobile()
   const [qty, setQty] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const allStores = useStores() || []
@@ -149,15 +152,18 @@ export default function ReturnStoreProductModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md h-[80vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b bg-white shrink-0">
+      <DialogContent className={cn(
+        "max-w-md h-[80vh] flex flex-col p-0 overflow-hidden transition-all duration-300",
+        isMobile && "max-w-none w-full h-full rounded-none"
+      )}>
+        <DialogHeader className="px-4 py-4 md:px-6 border-b bg-white shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <RotateCcw className="w-6 h-6 text-amber-600" />
             Return to Warehouse
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/30">
           <form id="return-product-form" onSubmit={handleSubmit} className="space-y-6">
             {/* Product Info - Read Only */}
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -245,16 +251,19 @@ export default function ReturnStoreProductModal({
           </form>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-slate-50 shrink-0">
-          <div className="flex gap-3 w-full">
-            <Button type="button" variant="outline" onClick={handleClose} className="flex-1 h-11 font-bold">
+        <DialogFooter className="px-4 py-4 md:px-6 border-t bg-slate-50 shrink-0">
+          <div className={cn(
+            "flex gap-3 w-full",
+            isMobile && "flex-col"
+          )}>
+            <Button type="button" variant="outline" onClick={handleClose} className="flex-1 h-11 font-bold order-2 md:order-1">
               Cancel
             </Button>
             <Button 
               type="submit" 
               form="return-product-form"
               disabled={submitting || returnQty <= 0 || returnQty > currentStoreStock}
-              className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 font-bold shadow-sm"
+              className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 font-bold shadow-sm order-1 md:order-2"
             >
               {submitting ? 'Processing...' : 'Confirm Return'}
             </Button>
@@ -264,4 +273,3 @@ export default function ReturnStoreProductModal({
     </Dialog>
   )
 }
-

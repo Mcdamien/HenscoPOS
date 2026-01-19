@@ -1,6 +1,8 @@
 'use client'
 
 import { X, Printer, Eye } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 import { useState, useEffect, useRef } from 'react'
 import {
   Dialog,
@@ -37,6 +39,7 @@ interface ReceiptModalProps {
 }
 
 export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptModalProps) {
+  const isMobile = useIsMobile()
   const printButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -46,9 +49,6 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
       }, 100)
     }
   }, [isOpen])
-
-  // Print preview mode - modal shows receipt without auto-printing
-  // User can click Print button to open print dialog, or Close to dismiss
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-GH', {
@@ -70,18 +70,19 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md h-[85vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b bg-white shrink-0">
+      <DialogContent className={cn(
+        "max-w-md h-[85vh] flex flex-col p-0 overflow-hidden transition-all duration-300",
+        isMobile && "max-w-none w-full h-full rounded-none h-screen"
+      )}>
+        <DialogHeader className="px-4 py-4 md:px-6 border-b bg-white shrink-0">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Eye className="w-5 h-5 text-emerald-600" />
             Print Preview
           </DialogTitle>
         </DialogHeader>
         
-        {/* Scrollable receipt content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50">
           <div className="font-mono receipt-content bg-white p-6 border rounded-xl shadow-md mx-auto max-w-[320px]">
-            {/* Header - Uses Arnel Rounded equivalent (Quicksand) */}
             <div className="text-center mb-6 border-b-2 border-dashed border-slate-200 pb-6 font-[var(--font-quicksand)]">
               <h2 className="text-2xl font-bold text-emerald-600 mb-1 tracking-tight">Yames POS</h2>
               <p className="font-bold text-slate-800 uppercase text-xs tracking-widest">{transaction.store}</p>
@@ -92,7 +93,6 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
               </div>
             </div>
 
-            {/* Items - Uses Geo Sans Light equivalent (Nunito) */}
             <div className="space-y-3 mb-6 font-[var(--font-nunito)]">
               {transaction.items.map((item, index) => (
                 <div key={index} className="flex justify-between text-xs items-start">
@@ -107,7 +107,6 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
               ))}
             </div>
 
-            {/* Totals - Uses Geo Sans Light equivalent (Nunito) */}
             <div className="pt-4 border-t-2 border-dashed border-slate-200 space-y-2 font-[var(--font-nunito)]">
               <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <span>Subtotal</span>
@@ -123,7 +122,6 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
               </div>
             </div>
 
-            {/* Footer - Uses Chopin equivalent (Playfair Display) */}
             <div className="text-center mt-8 pt-6 border-t border-slate-100 font-[var(--font-playfair)]">
               <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Thank you for your business!</p>
               <p className="text-[9px] text-slate-300 mt-2 uppercase tracking-tighter italic">Goods sold are non-returnable unless defective.</p>
@@ -131,17 +129,20 @@ export default function ReceiptModal({ isOpen, onClose, transaction }: ReceiptMo
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-white shrink-0">
-          <div className="grid grid-cols-2 gap-3 w-full">
+        <DialogFooter className="px-4 py-4 md:px-6 border-t bg-white shrink-0">
+          <div className={cn(
+            "grid gap-3 w-full",
+            isMobile ? "grid-cols-1" : "grid-cols-2"
+          )}>
             <Button 
               ref={printButtonRef}
               onClick={handlePrint} 
-              className="bg-emerald-600 hover:bg-emerald-700 h-11 font-bold shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-700 h-11 md:h-12 font-bold shadow-sm order-1"
             >
               <Printer className="w-4 h-4 mr-2" />
               PRINT RECEIPT
             </Button>
-            <Button variant="outline" onClick={handleClose} className="h-11 font-bold text-slate-600">
+            <Button variant="outline" onClick={handleClose} className="h-11 md:h-12 font-bold text-slate-600 order-2">
               <X className="w-4 h-4 mr-2" />
               CLOSE
             </Button>

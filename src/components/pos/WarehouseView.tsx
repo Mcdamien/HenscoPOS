@@ -28,6 +28,16 @@ import { useProducts, usePendingChanges, useTransfers, useStores } from "@/hooks
 import { useSync } from '@/components/providers/SyncProvider'
 import { dexieDb } from '@/lib/dexie'
 import { toast } from 'sonner'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
+
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { MoreVertical, Edit, Trash } from 'lucide-react'
 
 interface Product {
   id: string
@@ -56,6 +66,7 @@ interface WarehouseViewProps {
 }
 
 export default function WarehouseView({ stores, currentStore, onStoreChange }: WarehouseViewProps) {
+  const isMobile = useIsMobile()
   const products = useProducts() || []
   const offlinePendingChanges = usePendingChanges() || []
   const offlineTransfers = useTransfers() || []
@@ -240,14 +251,20 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
   }
 
   return (
-    <div className="pt-0 px-2 pb-8 h-full overflow-y-auto">
-      <Card>
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <h3 className="text-lg font-semibold">Central Warehouse Stock</h3>
+    <div className="pt-0 px-0 sm:px-2 pb-8 h-full overflow-y-auto bg-slate-50/30">
+      <Card className="rounded-none sm:rounded-xl border-x-0 sm:border-x">
+        <div className="p-4 sm:p-6 border-b border-slate-200 bg-white">
+          <div className={cn(
+            "flex items-center justify-between mb-4 gap-4",
+            isMobile && "flex-col items-stretch"
+          )}>
+            <div className={cn(
+              "flex items-center gap-4",
+              isMobile && "flex-col items-stretch"
+            )}>
+              <h3 className="text-lg font-bold text-slate-800">Central Warehouse</h3>
               <Select value={currentStore} onValueChange={onStoreChange}>
-                <SelectTrigger className="w-64">
+                <SelectTrigger className={cn("w-64", isMobile && "w-full h-11")}>
                   <SelectValue placeholder="Select shop" />
                 </SelectTrigger>
                 <SelectContent>
@@ -266,21 +283,30 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-72"
+                className={cn("pl-10 w-72", isMobile && "w-full h-11")}
               />
             </div>
           </div>
-          <div className="flex items-center justify-end gap-3">
+          
+          <div className={cn(
+            "flex items-center justify-end gap-2 sm:gap-3",
+            isMobile && "grid grid-cols-2"
+          )}>
             {/* Pending Approvals Button */}
             <Button 
               onClick={() => setShowPendingModal(true)} 
               variant="outline"
-              className={pendingCount > 0 ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100' : ''}
+              size={isMobile ? "sm" : "default"}
+              className={cn(
+                "h-10 font-bold",
+                pendingCount > 0 ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100' : '',
+                isMobile && "w-full"
+              )}
             >
               <Bell className="w-4 h-4 mr-2" />
               Approvals
               {pendingCount > 0 && (
-                <Badge variant="destructive" className="ml-2">
+                <Badge variant="destructive" className="ml-1.5 px-1.5 h-5 min-w-[20px] justify-center">
                   {pendingCount}
                 </Badge>
               )}
@@ -290,138 +316,273 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
             <Button 
               onClick={() => setShowTransferHistoryModal(true)}
               variant="outline"
-              className={pendingTransfersCount > 0 ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100' : ''}
+              size={isMobile ? "sm" : "default"}
+              className={cn(
+                "h-10 font-bold",
+                pendingTransfersCount > 0 ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100' : '',
+                isMobile && "w-full"
+              )}
             >
               <Truck className="w-4 h-4 mr-2" />
               Transfers
               {pendingTransfersCount > 0 && (
-                <Badge variant="destructive" className="ml-2">
+                <Badge variant="destructive" className="ml-1.5 px-1.5 h-5 min-w-[20px] justify-center">
                   {pendingTransfersCount}
                 </Badge>
               )}
             </Button>
 
             {/* Added Transfer Button */}
-            <Button onClick={() => setShowTransferModal(true)}>
-              <Truck className="w-4 h-4 mr-2" />
-              Transfer Stock
+            <Button 
+              onClick={() => setShowTransferModal(true)}
+              size={isMobile ? "sm" : "default"}
+              className={cn("h-10 font-bold bg-slate-900", isMobile && "w-full")}
+            >
+              <Truck className="w-4 h-4 mr-2 text-slate-400" />
+              Transfer
             </Button>
 
-            <Button onClick={() => setShowImportModal(true)} variant="outline">
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Import Excel
-            </Button>
-            <Button onClick={() => setShowAddModal(true)}>
+            <Button 
+              onClick={() => setShowAddModal(true)}
+              size={isMobile ? "sm" : "default"}
+              className={cn("h-10 font-bold bg-emerald-600 hover:bg-emerald-700", isMobile && "w-full")}
+            >
               <Plus className="w-4 h-4 mr-2" />
-              Add Inventory
+              {isMobile ? "Add" : "Add Inventory"}
             </Button>
-            {selectedProductIds.size > 0 && (
-              <Button 
-                variant="destructive" 
-                onClick={() => setShowBatchDeleteDialog(true)}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Selected ({selectedProductIds.size})
-              </Button>
+
+            {isMobile ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10 w-10 p-0 col-span-2 mx-auto mt-2">
+                    <MoreVertical className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => setShowImportModal(true)}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2 text-slate-400" />
+                    Import Excel
+                  </DropdownMenuItem>
+                  {selectedProductIds.size > 0 && (
+                    <DropdownMenuItem 
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                      onClick={() => setShowBatchDeleteDialog(true)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Selected ({selectedProductIds.size})
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button onClick={() => setShowImportModal(true)} variant="outline" className="h-10 font-medium">
+                  <FileSpreadsheet className="w-4 h-4 mr-2 text-slate-400" />
+                  Import
+                </Button>
+                {selectedProductIds.size > 0 && (
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => setShowBatchDeleteDialog(true)}
+                    className="h-10 font-medium"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete ({selectedProductIds.size})
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-slate-300"
-                  checked={filteredProducts.length > 0 && selectedProductIds.size === filteredProducts.length}
-                  onChange={toggleSelectAll}
-                />
-              </TableHead>
-              <TableHead>Item ID</TableHead>
-              <TableHead>Product Name</TableHead>
-              <TableHead>Cost</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        {isMobile ? (
+          <div className="p-4 space-y-4">
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-slate-500 py-8">
-                  Loading...
-                </TableCell>
-              </TableRow>
+              <div className="text-center py-12 text-slate-500 font-medium">Loading products...</div>
             ) : filteredProducts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-slate-500 py-8">
-                  No products found
-                </TableCell>
-              </TableRow>
+              <div className="text-center py-12 text-slate-500 font-medium">No products found</div>
             ) : (
-              filteredProducts.map((product) => {
-                const status = getStockStatus(product.warehouseStock)
-                return (
-                  <TableRow key={product.id} className={selectedProductIds.has(product.id) ? 'bg-slate-50' : ''}>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-slate-300"
-                        checked={selectedProductIds.has(product.id)}
-                        onChange={() => toggleProductSelection(product.id)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">#{product.itemId}</TableCell>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>{formatCurrency(product.cost)}</TableCell>
-                    <TableCell>{formatCurrency(product.price)}</TableCell>
-                    <TableCell>{product.warehouseStock}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge className={status.className}>{status.label}</Badge>
-                        {getTotalPendingReturnQty(product.id) > 0 && (
-                          <Badge
-                            variant="outline"
-                            className="bg-amber-50 border-amber-200 text-amber-700 text-xs"
-                          >
-                            ↩ {getTotalPendingReturnQty(product.id)} returning
-                          </Badge>
-                        )}
+              <div className="grid grid-cols-1 gap-4">
+                {filteredProducts.map((product) => {
+                  const status = getStockStatus(product.warehouseStock)
+                  const isSelected = selectedProductIds.has(product.id)
+                  const pendingReturnQty = getTotalPendingReturnQty(product.id)
+
+                  return (
+                    <Card 
+                      key={product.id} 
+                      className={cn(
+                        "p-4 border shadow-sm transition-all",
+                        isSelected && "border-slate-400 ring-1 ring-slate-400/20"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          className="w-5 h-5 rounded border-slate-300 mt-1"
+                          checked={isSelected}
+                          onChange={() => toggleProductSelection(product.id)}
+                        />
+                        <div className="flex-1 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-bold text-slate-400">#{product.itemId}</span>
+                                <Badge className={cn("text-[10px] px-1.5 py-0", status.className)}>
+                                  {status.label}
+                                </Badge>
+                              </div>
+                              <h4 className="font-bold text-slate-800">{product.name}</h4>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-slate-900">{formatCurrency(product.price)}</p>
+                              <p className="text-[11px] font-medium text-slate-500">Stock: {product.warehouseStock}</p>
+                            </div>
+                          </div>
+
+                          {pendingReturnQty > 0 && (
+                            <div className="bg-amber-50 border border-amber-100 rounded-lg p-2 flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-amber-600" />
+                              <span className="text-[11px] font-bold text-amber-600 uppercase">
+                                ↩ {pendingReturnQty} items returning to warehouse
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex gap-2 pt-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 h-9 text-xs font-bold border-slate-200"
+                              onClick={() => {
+                                setSelectedProduct(product)
+                                setShowEditModal(true)
+                              }}
+                            >
+                              <Edit className="w-3.5 h-3.5 mr-1.5" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-9 w-10 text-red-600 hover:bg-red-50 hover:text-red-700 border-red-100"
+                              onClick={() => {
+                                setProductToDelete(product)
+                                setShowDeleteDialog(true)
+                              }}
+                            >
+                              <Trash className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedProduct(product)
-                            setShowEditModal(true)
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
-                          onClick={() => {
-                            setProductToDelete(product)
-                            setShowDeleteDialog(true)
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
+                    </Card>
+                  )
+                })}
+              </div>
             )}
-          </TableBody>
-        </Table>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/50">
+                <TableHead className="w-12">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300"
+                    checked={filteredProducts.length > 0 && selectedProductIds.size === filteredProducts.length}
+                    onChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead className="font-bold text-slate-700">Item ID</TableHead>
+                <TableHead className="font-bold text-slate-700">Product Name</TableHead>
+                <TableHead className="font-bold text-slate-700">Cost</TableHead>
+                <TableHead className="font-bold text-slate-700">Price</TableHead>
+                <TableHead className="font-bold text-slate-700">Stock</TableHead>
+                <TableHead className="font-bold text-slate-700">Status</TableHead>
+                <TableHead className="text-right font-bold text-slate-700">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-slate-500 py-12 font-medium">
+                    Loading products...
+                  </TableCell>
+                </TableRow>
+              ) : filteredProducts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-slate-500 py-12 font-medium">
+                    No products found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredProducts.map((product) => {
+                  const status = getStockStatus(product.warehouseStock)
+                  return (
+                    <TableRow key={product.id} className={cn(
+                      "group hover:bg-slate-50/50 transition-colors",
+                      selectedProductIds.has(product.id) ? 'bg-slate-50' : ''
+                    )}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-slate-300"
+                          checked={selectedProductIds.has(product.id)}
+                          onChange={() => toggleProductSelection(product.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium text-slate-500 uppercase text-[11px]">#{product.itemId}</TableCell>
+                      <TableCell className="font-bold text-slate-800">{product.name}</TableCell>
+                      <TableCell className="font-medium">{formatCurrency(product.cost)}</TableCell>
+                      <TableCell className="font-bold text-slate-900">{formatCurrency(product.price)}</TableCell>
+                      <TableCell className="font-bold text-slate-700">{product.warehouseStock}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge className={cn("font-bold text-[10px] uppercase px-2", status.className)}>{status.label}</Badge>
+                          {getTotalPendingReturnQty(product.id) > 0 && (
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-50 border-amber-200 text-amber-700 text-[10px] font-bold uppercase"
+                            >
+                              ↩ {getTotalPendingReturnQty(product.id)} returning
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => {
+                              setSelectedProduct(product)
+                              setShowEditModal(true)
+                            }}
+                          >
+                            <Edit className="w-4 h-4 text-slate-400" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              setProductToDelete(product)
+                              setShowDeleteDialog(true)
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       {/* Modals */}

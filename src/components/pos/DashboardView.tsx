@@ -14,12 +14,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import ReceiptModal from '@/components/pos/ReceiptModal'
-import SalesAnalyticsModal from '@/components/pos/SalesAnalyticsModal'
 import ReportModal from '@/components/pos/ReportModal'
 import RestockItemsModal from '@/components/pos/RestockItemsModal'
 import TransferHistoryModal from '@/components/pos/TransferHistoryModal'
 import InventoryHistoryModal from '@/components/pos/InventoryHistoryModal'
-import { useTransactions, useProducts, useTransactionItems, useStores, useInventory } from "@/hooks/useOfflineData"
+import { useTransactions, useProducts, useTransactionItems, useStores, useInventory, useTransfers, useAdditions } from "@/hooks/useOfflineData"
 
 interface DashboardStats {
   totalSales: number
@@ -63,6 +62,8 @@ export default function DashboardView() {
   const allTransactionItems = useTransactionItems() || []
   const allStores = useStores() || []
   const allInventory = useInventory() || []
+  const transfers = useTransfers() || []
+  const inventoryAdditions = useAdditions() || []
   
   const [showReports, setShowReports] = useState(false)
   const [showRestockModal, setShowRestockModal] = useState(false)
@@ -73,8 +74,6 @@ export default function DashboardView() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [selectedShopTransactions, setSelectedShopTransactions] = useState<Transaction[] | null>(null)
   const [selectedStoreName, setSelectedStoreName] = useState<string | null>(null)
-  const [transfers, setTransfers] = useState<any[]>([])
-  const [inventoryAdditions, setInventoryAdditions] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
   // Calculate stats locally
@@ -209,34 +208,6 @@ export default function DashboardView() {
     return best
   }, [allTransactionItems])
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [transferRes, inventoryRes] = await Promise.all([
-          fetch('/api/transfer'),
-          fetch('/api/inventory/addition')
-        ])
-        
-        if (transferRes.ok) {
-          const transferData = await transferRes.json()
-          if (Array.isArray(transferData)) {
-            setTransfers(transferData)
-          }
-        }
-
-        if (inventoryRes.ok) {
-          const inventoryData = await inventoryRes.json()
-          if (Array.isArray(inventoryData)) {
-            setInventoryAdditions(inventoryData)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error)
-      }
-    }
-
-    fetchData()
-  }, [])
 
   const formatCurrency = (amount: number) => {
     const safeAmount = typeof amount === 'number' ? amount : 0
@@ -288,28 +259,38 @@ export default function DashboardView() {
   }
 
   return (
-    <div className="pt-0 px-2 pb-8 h-full overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
+    <div className="pt-0 px-2 md:px-4 pb-8 h-full overflow-y-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <h2 className="text-2xl font-semibold">Overview</h2>
-        <Button 
-          variant="outline" 
-          onClick={() => setShowReports(true)}
-          className="flex items-center gap-2 mt-4"
-        >
-          <TrendingUp className="w-4 h-4" />
-          Analytics & Reports
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowReports(true)}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2"
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span className="md:inline">Analytics</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowRestockModal(true)}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2"
+          >
+            <Package className="w-4 h-4" />
+            <span className="md:inline">Restock</span>
+          </Button>
+        </div>
       </div>
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mb-8">
         <StatCard
           title="Total Transactions"
           value={stats.transactions.toString()}
           trend={
             <>
               <CheckCircle className="w-3 h-3" />
-              <span>Sales count</span>
+              <span className="hidden sm:inline">Sales count</span>
             </>
           }
           icon={CheckCircle}
@@ -323,7 +304,7 @@ export default function DashboardView() {
           trend={
             <>
               <BarChart3 className="w-3 h-3" />
-              <span>Performance</span>
+              <span className="hidden sm:inline">Performance</span>
             </>
           }
           icon={DollarSign}
@@ -337,7 +318,7 @@ export default function DashboardView() {
           trend={
             <>
               <PiggyBank className="w-3 h-3" />
-              <span>After costs</span>
+              <span className="hidden sm:inline">After costs</span>
             </>
           }
           icon={PiggyBank}
@@ -350,7 +331,7 @@ export default function DashboardView() {
           trend={
             <>
               <Calendar className="w-3 h-3" />
-              <span>Click to view all shop sales</span>
+              <span className="hidden sm:inline">All shop sales</span>
             </>
           }
           icon={Calendar}
@@ -362,18 +343,18 @@ export default function DashboardView() {
           }}
         />
         <StatCard
-          title="LOW/ OUT OF STOCK"
+          title="LOW/ OUT"
           value={
-            <span className="flex items-center gap-2">
-              <span className="text-amber-600">Low: {stats.lowStockCount}</span>
-              <span className="text-slate-300 font-normal">|</span>
-              <span className="text-red-600">Out: {stats.outOfStockCount}</span>
+            <span className="flex items-center gap-1 md:gap-2">
+              <span className="text-amber-600">{stats.lowStockCount}</span>
+              <span className="text-slate-300 font-normal">/</span>
+              <span className="text-red-600">{stats.outOfStockCount}</span>
             </span>
           }
           trend={
             <>
               <AlertTriangle className="w-3 h-3" />
-              <span>Restock needed</span>
+              <span className="hidden sm:inline">Restock</span>
             </>
           }
           icon={AlertTriangle}
@@ -382,12 +363,12 @@ export default function DashboardView() {
           onClick={() => setShowRestockModal(true)}
         />
         <StatCard
-          title="Best Selling Product"
+          title="Best Seller"
           value={bestSeller ? bestSeller.name : 'N/A'}
           trend={
             <>
               <TrendingUp className="w-3 h-3" />
-              <span>{bestSeller ? `${bestSeller.qty} units sold` : 'No sales yet'}</span>
+              <span className="hidden sm:inline">{bestSeller ? `${bestSeller.qty} sold` : 'No sales'}</span>
             </>
           }
           icon={TrendingUp}
@@ -409,8 +390,9 @@ export default function DashboardView() {
           Analytics
         </Button>
       </div>
-      <Card>
-        <Table>
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[600px] md:min-w-full">
             <TableHeader>
               <TableRow>
                 <TableHead>Store</TableHead>
@@ -430,26 +412,27 @@ export default function DashboardView() {
               ) : (
                 shopGroups.slice(0, 10).map((shop, index) => (
                   <TableRow key={index}>
-                    <TableCell className="font-medium">{shop.store}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">{shop.store}</TableCell>
+                    <TableCell className="whitespace-nowrap text-xs">
                       {shop.firstDate ? formatDateDDMMYYYY(shop.firstDate) : 'N/A'} - {shop.lastDate ? formatDateDDMMYYYY(shop.lastDate) : 'N/A'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="bg-slate-50">
-                        {shop.transactionCount} transaction{shop.transactionCount !== 1 ? 's' : ''}
+                      <Badge variant="outline" className="bg-slate-50 whitespace-nowrap">
+                        {shop.transactionCount} tx{shop.transactionCount !== 1 ? 's' : ''}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-bold text-emerald-600">{formatCurrency(shop.totalAmount)}</TableCell>
+                    <TableCell className="font-bold text-emerald-600 whitespace-nowrap">{formatCurrency(shop.totalAmount)}</TableCell>
                     <TableCell className="text-right">
                       <Button 
                         variant="ghost" 
                         size="sm"
+                        className="h-8"
                         onClick={() => {
                           setSelectedStoreName(shop.store)
                           setSelectedShopTransactions(shop.transactions)
                         }}
                       >
-                        View All
+                        View
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -457,65 +440,78 @@ export default function DashboardView() {
               )}
             </TableBody>
           </Table>
-        </Card>
+        </div>
+      </Card>
 
       {/* Recent Stock Transfers */}
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Recent Stock Transfers</h3>
-          <Badge variant="outline" className="bg-slate-50">
-            Last {Math.min(transfers.length, 5)} transfers
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-slate-50 hidden sm:flex">
+              Last {Math.min(transfers.length, 5)} transfers
+            </Badge>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowTransferHistory(true)}
+              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+            >
+              View All
+            </Button>
+          </div>
         </div>
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Transfer ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Destination</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead className="text-right">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transfers.length === 0 ? (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table className="min-w-[600px] md:min-w-full">
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500 py-8">
-                    No transfers yet
-                  </TableCell>
+                  <TableHead>Transfer ID</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Destination</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
                 </TableRow>
-              ) : (
-                transfers.slice(0, 5).map((transfer) => (
-                  <TableRow key={transfer.id}>
-                    <TableCell className="font-medium">#TR-{transfer.transferId}</TableCell>
-                    <TableCell>{formatDateDDMMYYYY(transfer.createdAt)}</TableCell>
-                    <TableCell>
-                      <span className="font-medium">{transfer.toStore}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                        onClick={() => {
-                          setTransferIdToExpand(transfer.id)
-                          setShowTransferHistory(true)
-                        }}
-                      >
-                        {transfer.items.length} {transfer.items.length === 1 ? 'item' : 'items'}
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none text-[10px]">
-                        {transfer.status}
-                      </Badge>
+              </TableHeader>
+              <TableBody>
+                {transfers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                      No transfers yet
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  transfers.slice(0, 5).map((transfer) => (
+                    <TableRow key={transfer.id}>
+                      <TableCell className="font-medium whitespace-nowrap">#TR-{transfer.transferId}</TableCell>
+                      <TableCell className="whitespace-nowrap text-xs">{formatDateDDMMYYYY(transfer.createdAt)}</TableCell>
+                      <TableCell>
+                        <span className="font-medium whitespace-nowrap">{transfer.toStore}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          onClick={() => {
+                            setTransferIdToExpand(transfer.id)
+                            setShowTransferHistory(true)
+                          }}
+                        >
+                          {transfer.items.length} {transfer.items.length === 1 ? 'item' : 'items'}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none text-[10px] whitespace-nowrap">
+                          {transfer.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </Card>
       </div>
 
@@ -523,59 +519,71 @@ export default function DashboardView() {
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Recent Inventory Additions</h3>
-          <Badge variant="outline" className="bg-slate-50">
-            Last {Math.min(inventoryAdditions.length, 5)} additions
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-slate-50 hidden sm:flex">
+              Last {Math.min(inventoryAdditions.length, 5)} additions
+            </Badge>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowInventoryHistory(true)}
+              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+            >
+              View All
+            </Button>
+          </div>
         </div>
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Inventory ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Total Cost</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {inventoryAdditions.length === 0 ? (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table className="min-w-[600px] md:min-w-full">
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500 py-8">
-                    No inventory additions yet
-                  </TableCell>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Total Cost</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
-              ) : (
-                inventoryAdditions.slice(0, 5).map((addition) => (
-                  <TableRow key={addition.id}>
-                    <TableCell className="font-medium">#INV-{addition.additionId}</TableCell>
-                    <TableCell>{formatDateDDMMYYYY(addition.createdAt)}</TableCell>
-                    <TableCell className="font-medium text-emerald-600">
-                      {formatCurrency(addition.totalCost)}
-                    </TableCell>
-                    <TableCell>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                        onClick={() => {
-                          setSelectedInventoryId(addition.id)
-                          setShowInventoryHistory(true)
-                        }}
-                      >
-                        {addition.items.length} {addition.items.length === 1 ? 'item' : 'items'}
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none text-[10px]">
-                        Completed
-                      </Badge>
+              </TableHeader>
+              <TableBody>
+                {inventoryAdditions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                      No inventory additions yet
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  inventoryAdditions.slice(0, 5).map((addition) => (
+                    <TableRow key={addition.id}>
+                      <TableCell className="font-medium whitespace-nowrap">#INV-{addition.additionId}</TableCell>
+                      <TableCell className="whitespace-nowrap text-xs">{formatDateDDMMYYYY(addition.createdAt)}</TableCell>
+                      <TableCell className="font-medium text-emerald-600 whitespace-nowrap">
+                        {formatCurrency(addition.totalCost)}
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          onClick={() => {
+                            setSelectedInventoryId(addition.id)
+                            setShowInventoryHistory(true)
+                          }}
+                        >
+                          {addition.items.length} {addition.items.length === 1 ? 'item' : 'items'}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none text-[10px] whitespace-nowrap">
+                          Completed
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </Card>
       </div>
 
@@ -597,21 +605,21 @@ export default function DashboardView() {
 
       {selectedShopTransactions && (
         <Dialog open={!!selectedShopTransactions} onOpenChange={() => setSelectedShopTransactions(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-            <DialogHeader className="flex-shrink-0">
+          <DialogContent className="max-w-2xl w-[95vw] md:w-full max-h-[90vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-4 border-b">
               <DialogTitle className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-emerald-600" />
-                All Transactions {selectedStoreName ? `- ${selectedStoreName}` : ''}
+                <span className="truncate">Transactions {selectedStoreName ? `- ${selectedStoreName}` : ''}</span>
               </DialogTitle>
             </DialogHeader>
             
-            <div className="flex-1 overflow-y-auto">
-              <Table>
+            <div className="flex-1 overflow-x-auto overflow-y-auto">
+              <Table className="min-w-[500px] md:min-w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Items</TableHead>
+                    <TableHead className="hidden sm:table-cell">Items</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
@@ -619,17 +627,18 @@ export default function DashboardView() {
                 <TableBody>
                   {selectedShopTransactions.map((tx) => (
                     <TableRow key={tx.id}>
-                      <TableCell className="font-medium">#{tx.transactionId}</TableCell>
-                      <TableCell>{formatDateDDMMYYYY(tx.date)}</TableCell>
-                      <TableCell>{tx.items?.length || 0} item{(tx.items?.length || 0) !== 1 ? 's' : ''}</TableCell>
-                      <TableCell className="text-right font-bold">{formatCurrency(tx.total)}</TableCell>
+                      <TableCell className="font-medium text-xs whitespace-nowrap">#{tx.transactionId}</TableCell>
+                      <TableCell className="text-[10px] md:text-xs whitespace-nowrap">{formatDateDDMMYYYY(tx.date)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{tx.items?.length || 0} item{(tx.items?.length || 0) !== 1 ? 's' : ''}</TableCell>
+                      <TableCell className="text-right font-bold text-xs whitespace-nowrap">{formatCurrency(tx.total)}</TableCell>
                       <TableCell className="text-right">
                         <Button 
                           variant="ghost" 
                           size="sm"
+                          className="h-8 text-xs"
                           onClick={() => setSelectedTransaction(tx)}
                         >
-                          View Receipt
+                          Receipt
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -639,12 +648,12 @@ export default function DashboardView() {
             </div>
             
             <div className="p-4 border-t bg-slate-50 flex-shrink-0">
-              <div className="flex justify-between items-center">
-                <div className="text-sm text-slate-600">
-                  <span className="font-medium">{selectedShopTransactions.length}</span> transaction{selectedShopTransactions.length !== 1 ? 's' : ''} | 
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="text-xs text-slate-600 text-center sm:text-left">
+                  <span className="font-medium">{selectedShopTransactions.length}</span> tx | 
                   <span className="font-medium ml-2">Total: {formatCurrency(selectedShopTransactions.reduce((sum, tx) => sum + tx.total, 0))}</span>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setSelectedShopTransactions(null)}>
+                <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setSelectedShopTransactions(null)}>
                   <X className="w-4 h-4 mr-2" />
                   Close
                 </Button>

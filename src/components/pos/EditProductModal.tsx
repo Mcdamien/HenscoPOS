@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { handleNumberKeyDown, handleIntegerKeyDown } from '@/lib/utils'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { dexieDb } from '@/lib/dexie'
 import { useSync } from '@/components/providers/SyncProvider'
 import { v4 as uuidv4 } from 'uuid'
@@ -45,6 +46,7 @@ interface EditProductModalProps {
 const FIELD_COUNT = 5
 
 export default function EditProductModal({ isOpen, onClose, onSuccess, product }: EditProductModalProps) {
+  const isMobile = useIsMobile()
   const [formData, setFormData] = useState({
     cost: '',
     price: '',
@@ -160,7 +162,10 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className={cn(
+        "max-w-2xl flex flex-col p-0 overflow-hidden",
+        isMobile ? "w-full h-full max-h-screen rounded-none" : "h-[80vh]"
+      )}>
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <Package className="w-6 h-6 text-emerald-600" />
@@ -168,32 +173,32 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <form id="edit-product-form" onSubmit={handleSubmit} className="space-y-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <form id="edit-product-form" onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
             {/* Product Summary Card */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5 shadow-sm">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                  <Package className="w-6 h-6 text-emerald-600" />
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                  <Package className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">{product.name}</h3>
-                  <p className="text-sm font-medium text-slate-500">Item ID: #{product.itemId}</p>
+                  <h3 className="text-base md:text-lg font-bold text-slate-900 truncate max-w-[200px] md:max-w-none">{product.name}</h3>
+                  <p className="text-xs md:text-sm font-medium text-slate-500">Item ID: #{product.itemId}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 md:gap-4">
                 <div className="bg-white p-3 rounded-xl border border-slate-100">
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Current Stock</span>
-                  <p className="text-xl font-bold text-slate-900">{product.warehouseStock} units</p>
+                  <span className="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">Current Stock</span>
+                  <p className="text-base md:text-xl font-bold text-slate-900">{product.warehouseStock} units</p>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-slate-100">
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Current Value</span>
-                  <p className="text-xl font-bold text-slate-900">GHS {(product.warehouseStock * product.cost).toLocaleString()}</p>
+                  <span className="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">Current Value</span>
+                  <p className="text-base md:text-xl font-bold text-slate-900">GHS {(product.warehouseStock * product.cost).toLocaleString()}</p>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
                 <Label htmlFor="cost" className="text-sm font-semibold text-slate-700">Cost Price (GHS)</Label>
                 <div className="relative">
@@ -203,7 +208,7 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
                     id="cost"
                     type="number"
                     step="0.01"
-                    className="h-12 pl-8 text-lg font-medium border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                    className="h-11 md:h-12 pl-8 text-base md:text-lg font-medium border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
                     value={formData.cost}
                     onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                     onKeyDown={handleCostKeyDown}
@@ -220,7 +225,7 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
                     id="price"
                     type="number"
                     step="0.01"
-                    className="h-12 pl-8 text-lg font-medium border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                    className="h-11 md:h-12 pl-8 text-base md:text-lg font-medium border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     onKeyDown={handlePriceKeyDown}
@@ -230,7 +235,7 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
               </div>
             </div>
 
-            <div className="space-y-3 bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100">
+            <div className="space-y-3 bg-emerald-50/50 p-4 md:p-6 rounded-2xl border border-emerald-100">
               <div className="flex items-center justify-between">
                 <Label htmlFor="addQty" className="text-sm font-bold text-emerald-900">Add Stock Inventory</Label>
                 <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200">Optional</Badge>
@@ -241,17 +246,17 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
                 type="number"
                 min="0"
                 placeholder="Enter quantity to add"
-                className="h-12 text-lg font-medium border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                className="h-11 md:h-12 text-base md:text-lg font-medium border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
                 value={formData.addQty}
                 onChange={(e) => setFormData({ ...formData, addQty: e.target.value })}
                 onKeyDown={handleAddQtyKeyDown}
               />
               {formData.addQty && (
                 <div className="flex items-center justify-between px-1">
-                  <p className="text-sm font-medium text-emerald-700">
+                  <p className="text-xs md:text-sm font-medium text-emerald-700">
                     Projected New Stock:
                   </p>
-                  <p className="text-sm font-bold text-emerald-900">
+                  <p className="text-xs md:text-sm font-bold text-emerald-900">
                     {product.warehouseStock + (parseInt(formData.addQty) || 0)} units
                   </p>
                 </div>
@@ -260,12 +265,18 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
           </form>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+        <DialogFooter className={cn(
+          "px-6 py-4 border-t flex flex-row justify-end gap-3 bg-slate-50 flex-shrink-0",
+          isMobile && "grid grid-cols-2 gap-2"
+        )}>
           <Button 
             ref={registerField(3)}
             type="button" 
             variant="outline" 
-            className="h-12 px-8 font-semibold border-slate-300 hover:bg-slate-100 rounded-xl transition-all"
+            className={cn(
+              "h-11 md:h-12 px-6 md:px-8 font-semibold border-slate-300 hover:bg-slate-100 rounded-xl transition-all",
+              isMobile && "w-full px-0"
+            )}
             onClick={handleClose}
             onKeyDown={(e) => {
               if (e.key === 'Tab' && e.shiftKey) {
@@ -282,7 +293,10 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
             ref={registerField(4)}
             type="submit" 
             form="edit-product-form"
-            className="h-12 px-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md rounded-xl transition-all active:scale-95"
+            className={cn(
+              "h-11 md:h-12 px-8 md:px-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md rounded-xl transition-all active:scale-95",
+              isMobile && "w-full px-0"
+            )}
             disabled={submitting}
             onKeyDown={(e) => {
               if (e.key === 'Tab' && e.shiftKey) {
@@ -291,9 +305,10 @@ export default function EditProductModal({ isOpen, onClose, onSuccess, product }
               }
             }}
           >
-            {submitting ? 'Saving...' : 'Update Product'}
+            {submitting ? 'Saving...' : 'Update'}
           </Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   )

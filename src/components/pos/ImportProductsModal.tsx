@@ -2,6 +2,8 @@
 
 import { useState, useRef } from 'react'
 import { X, FileSpreadsheet, Upload, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +26,7 @@ interface ImportProductsModalProps {
 }
 
 export default function ImportProductsModal({ isOpen, onClose, onSuccess }: ImportProductsModalProps) {
+  const isMobile = useIsMobile()
   const [file, setFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
   const [results, setResults] = useState<{ created: number; updated: number; errors: number } | null>(null)
@@ -200,22 +203,28 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
+      <DialogContent className={cn(
+        "max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden transition-all duration-300",
+        isMobile && "max-w-none w-full h-full rounded-none"
+      )}>
+        <DialogHeader className="px-4 py-4 md:px-6 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-            Import Products from Excel
+            Import Products
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {!results ? (
             <div className="space-y-6">
               <div className="space-y-2">
                 <p className="text-sm text-slate-500">
                   Upload an Excel file (.xlsx or .xls) with the following columns:
                 </p>
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs font-mono grid grid-cols-4 gap-2 text-center">
+                <div className={cn(
+                  "bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs font-mono grid gap-2 text-center",
+                  isMobile ? "grid-cols-2" : "grid-cols-4"
+                )}>
                   <div className="font-bold border-b pb-1">Name</div>
                   <div className="font-bold border-b pb-1">Cost</div>
                   <div className="font-bold border-b pb-1">Price</div>
@@ -225,10 +234,11 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
 
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className={`
-                  border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
-                  ${file ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}
-                `}
+                className={cn(
+                  "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all",
+                  file ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
+                  isMobile && "py-12"
+                )}
               >
                 <input
                   type="file"
@@ -238,7 +248,7 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
                   className="hidden"
                 />
                 <div className="flex flex-col items-center gap-2">
-                  <Upload className={`w-8 h-8 ${file ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <Upload className={cn("w-8 h-8", file ? 'text-emerald-600' : 'text-slate-400')} />
                   {file ? (
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-emerald-700">{file.name}</p>
@@ -267,16 +277,19 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
                 </AlertDescription>
               </Alert>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 bg-slate-50 rounded-lg border">
+              <div className={cn(
+                "grid gap-4",
+                isMobile ? "grid-cols-1" : "grid-cols-3"
+              )}>
+                <div className="flex items-center justify-between md:flex-col p-4 bg-slate-50 rounded-lg border">
                   <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Created</p>
                   <p className="text-2xl font-black text-emerald-600">{results.created}</p>
                 </div>
-                <div className="text-center p-3 bg-slate-50 rounded-lg border">
+                <div className="flex items-center justify-between md:flex-col p-4 bg-slate-50 rounded-lg border">
                   <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Updated</p>
                   <p className="text-2xl font-black text-blue-600">{results.updated}</p>
                 </div>
-                <div className="text-center p-3 bg-slate-50 rounded-lg border">
+                <div className="flex items-center justify-between md:flex-col p-4 bg-slate-50 rounded-lg border">
                   <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Errors</p>
                   <p className="text-2xl font-black text-red-600">{results.errors}</p>
                 </div>
@@ -285,16 +298,16 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
           )}
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+        <DialogFooter className="px-4 py-4 md:px-6 border-t flex flex-col md:flex-row justify-end gap-3 bg-slate-50 flex-shrink-0">
           {!results ? (
             <>
-              <Button variant="outline" className="px-8" onClick={handleClose} disabled={importing}>
+              <Button variant="outline" className="w-full md:px-8 md:w-auto order-2 md:order-1" onClick={handleClose} disabled={importing}>
                 Cancel
               </Button>
               <Button 
                 onClick={handleImport} 
                 disabled={!file || importing}
-                className="bg-emerald-600 hover:bg-emerald-700 px-8"
+                className="w-full md:px-8 md:w-auto bg-emerald-600 hover:bg-emerald-700 order-1 md:order-2"
               >
                 {importing ? (
                   <>
@@ -307,7 +320,7 @@ export default function ImportProductsModal({ isOpen, onClose, onSuccess }: Impo
               </Button>
             </>
           ) : (
-            <Button onClick={handleClose} className="px-12 bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={handleClose} className="w-full md:px-12 bg-emerald-600 hover:bg-emerald-700">
               Done
             </Button>
           )}

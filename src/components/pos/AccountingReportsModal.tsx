@@ -21,6 +21,8 @@ import {
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 
 type ReportType = 'profit-loss' | 'trial-balance' | 'balance-sheet'
 
@@ -121,6 +123,7 @@ const REPORT_CONFIG = {
 }
 
 export default function AccountingReportsModal({ isOpen, onClose }: AccountingReportsModalProps) {
+  const isMobile = useIsMobile()
   const [selectedReport, setSelectedReport] = useState<ReportType | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -773,11 +776,14 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
   return (
     <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className={cn(
+        "max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden",
+        isMobile && "h-full max-h-screen w-full rounded-none"
+      )}>
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-slate-600" />
-            Generate Accounting Reports
+            Accounting Reports
           </DialogTitle>
         </DialogHeader>
 
@@ -791,7 +797,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   <Button variant="outline" className="w-full justify-between h-12">
                     {selectedConfig ? (
                       <div className="flex items-center gap-2">
-                        <selectedConfig.icon className={`w-5 h-5 ${selectedConfig.color}`} />
+                        <selectedConfig.icon className={cn("w-5 h-5", selectedConfig.color)} />
                         <span>{selectedConfig.title}</span>
                       </div>
                     ) : (
@@ -800,14 +806,14 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                     <ChevronDown className="w-4 h-4 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-full">
+                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
                   {Object.entries(REPORT_CONFIG).map(([key, config]) => (
                     <DropdownMenuItem
                       key={key}
                       onClick={() => setSelectedReport(key as ReportType)}
                       className="flex items-center gap-2"
                     >
-                      <config.icon className={`w-5 h-5 ${config.color}`} />
+                      <config.icon className={cn("w-5 h-5", config.color)} />
                       <div>
                         <p className="font-medium">{config.title}</p>
                         <p className="text-xs text-slate-500">{config.description}</p>
@@ -819,7 +825,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
             </div>
 
             {/* Date Range */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className={cn("grid grid-cols-2 gap-4", isMobile && "grid-cols-1")}>
               <div>
                 <Label htmlFor="startDate">Start Date</Label>
                 <Input
@@ -827,6 +833,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  className={isMobile ? "h-11" : ""}
                 />
               </div>
               <div>
@@ -836,6 +843,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  className={isMobile ? "h-11" : ""}
                 />
               </div>
             </div>
@@ -843,19 +851,19 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
             {/* Preview Section */}
             {hasGenerated && reportData && selectedConfig && (
               <div className="space-y-4 border-t pt-4">
-                <div className="flex items-center justify-between">
+                <div className={cn("flex items-center justify-between", isMobile && "flex-col items-start gap-3")}>
                   <h4 className="font-medium flex items-center gap-2">
                     {selectedConfig.title}
                     <CheckCircle className="w-4 h-4 text-green-600" />
                   </h4>
-                  <div className="flex gap-2">
-                    <Button onClick={handlePreview} variant="outline" size="sm">
+                  <div className={cn("flex gap-2", isMobile && "w-full")}>
+                    <Button onClick={handlePreview} variant="outline" size="sm" className={isMobile ? "flex-1" : ""}>
                       <Eye className="w-4 h-4 mr-2" />
                       Preview
                     </Button>
-                    <Button onClick={handleDownloadPDF} size="sm">
+                    <Button onClick={handleDownloadPDF} size="sm" className={isMobile ? "flex-1" : ""}>
                       <Download className="w-4 h-4 mr-2" />
-                      Download PDF
+                      PDF
                     </Button>
                   </div>
                 </div>
@@ -863,20 +871,20 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                 {/* Preview based on report type */}
                 {reportData.profitLoss && (
                   <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
+                    <div className={cn("grid grid-cols-3 gap-4 text-center", isMobile && "grid-cols-1 gap-2")}>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500">Revenue</p>
                         <p className="text-lg font-bold text-green-600">
                           {formatCurrency(reportData.profitLoss.summary.totalRevenue)}
                         </p>
                       </div>
-                      <div>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500">Expenses</p>
                         <p className="text-lg font-bold text-red-600">
                           {formatCurrency(reportData.profitLoss.summary.totalExpenses)}
                         </p>
                       </div>
-                      <div>
+                      <div className={isMobile ? "flex justify-between items-center border-t pt-2 mt-2 sm:border-t-0 sm:pt-0 sm:mt-0" : ""}>
                         <p className="text-xs text-slate-500">Net Profit</p>
                         <p className="text-lg font-bold text-emerald-600">
                           {formatCurrency(reportData.profitLoss.summary.netProfit)}
@@ -888,59 +896,51 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
                 {reportData.trialBalance && (
                   <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
+                    <div className={cn("grid grid-cols-3 gap-4 text-center", isMobile && "grid-cols-1 gap-2")}>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500">Total Debits</p>
                         <p className="text-lg font-bold text-blue-600">
                           {formatCurrency(reportData.trialBalance.summary.totalDebits)}
                         </p>
                       </div>
-                      <div>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500">Total Credits</p>
                         <p className="text-lg font-bold text-orange-600">
                           {formatCurrency(reportData.trialBalance.summary.totalCredits)}
                         </p>
                       </div>
-                      <div>
+                      <div className={isMobile ? "flex justify-between items-center border-t pt-2 mt-2 sm:border-t-0 sm:pt-0 sm:mt-0" : ""}>
                         <p className="text-xs text-slate-500">Status</p>
-                        <p className={`text-lg font-bold ${reportData.trialBalance.summary.isBalanced ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className={cn("text-lg font-bold", reportData.trialBalance.summary.isBalanced ? 'text-green-600' : 'text-red-600')}>
                           {reportData.trialBalance.summary.isBalanced ? '✓ Balanced' : '✗ Unbalanced'}
                         </p>
                       </div>
                     </div>
-                    <p className="text-xs text-slate-500 text-center">
-                      {reportData.trialBalance.trialBalance.length} accounts in trial balance
-                    </p>
                   </div>
                 )}
 
                 {reportData.balanceSheet && (
                   <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
+                    <div className={cn("grid grid-cols-3 gap-4 text-center", isMobile && "grid-cols-1 gap-2")}>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500">Total Assets</p>
                         <p className="text-lg font-bold text-blue-600">
                           {formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.totalAssets)}
                         </p>
                       </div>
-                      <div>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500">Total Liabilities</p>
                         <p className="text-lg font-bold text-orange-600">
                           {formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.totalLiabilities)}
                         </p>
                       </div>
-                      <div>
+                      <div className={isMobile ? "flex justify-between items-center border-t pt-2 mt-2 sm:border-t-0 sm:pt-0 sm:mt-0" : ""}>
                         <p className="text-xs text-slate-500">Total Equity</p>
                         <p className="text-lg font-bold text-purple-600">
                           {formatCurrency(reportData.balanceSheet.balanceSheet.totals.totalEquity)}
                         </p>
                       </div>
                     </div>
-                    <p className={`text-xs text-center ${reportData.balanceSheet.accountingEquation.isBalanced ? 'text-green-600' : 'text-red-600'}`}>
-                      {reportData.balanceSheet.accountingEquation.isBalanced 
-                        ? '✓ Balance Sheet is Balanced (Assets = Liabilities + Equity)' 
-                        : '✗ Balance Sheet is NOT Balanced'}
-                    </p>
                   </div>
                 )}
               </div>
@@ -948,18 +948,18 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+        <DialogFooter className={cn("px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0", isMobile && "flex-col pt-4")}>
           <Button
             variant="outline"
             onClick={handleClose}
-            className="px-8"
+            className={cn("px-8", isMobile && "w-full order-2")}
           >
             Cancel
           </Button>
           <Button
             onClick={handleGenerateReport}
             disabled={!selectedReport || loading}
-            className="px-8 bg-blue-600 hover:bg-blue-700"
+            className={cn("px-8 bg-blue-600 hover:bg-blue-700", isMobile && "w-full order-1")}
           >
             {loading ? (
               <>
@@ -979,11 +979,21 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
 
     {/* Preview Modal */}
     <Dialog open={showPreview} onOpenChange={setShowPreview}>
-      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className={cn(
+        "max-w-6xl h-[90vh] flex flex-col p-0 overflow-hidden",
+        isMobile && "h-full max-h-screen w-full rounded-none"
+      )}>
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Eye className="w-5 h-5 text-slate-600" />
-            {selectedConfig?.title} - Preview
+          <DialogTitle className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Eye className="w-5 h-5 text-slate-600" />
+              <span className={isMobile ? "text-base" : ""}>{selectedConfig?.title} - Preview</span>
+            </div>
+            {isMobile && (
+              <Button variant="ghost" size="icon" onClick={() => setShowPreview(false)} className="rounded-full">
+                <X className="w-5 h-5" />
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
         
@@ -996,7 +1006,7 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
             <div className="space-y-6">
               {/* Report Header */}
               <div className="text-center border-b pb-4">
-                <h2 className="text-2xl font-bold text-slate-800">{selectedConfig.title}</h2>
+                <h2 className={cn("font-bold text-slate-800", isMobile ? "text-xl" : "text-2xl")}>{selectedConfig.title}</h2>
                 <p className="text-sm text-slate-500 mt-1">
                   {reportData.profitLoss 
                     ? `Period: ${reportData.profitLoss.period.startDate} to ${reportData.profitLoss.period.endDate}`
@@ -1017,83 +1027,119 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   {/* Revenue Section */}
                   <div>
                     <h3 className="text-lg font-semibold text-green-600 mb-3">REVENUE</h3>
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-green-50">
-                          <tr>
-                            <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
-                            <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
-                            <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportData.profitLoss.revenue.map((acc, idx) => (
-                            <tr key={idx} className="border-b last:border-0">
-                              <td className="p-3 text-slate-600">{acc.code}</td>
-                              <td className="p-3 text-slate-800">{acc.name}</td>
-                              <td className="p-3 text-right text-green-600 font-medium">
-                                {formatCurrency(acc.balance)}
+                    {isMobile ? (
+                      <div className="space-y-3">
+                        {reportData.profitLoss.revenue.map((acc, idx) => (
+                          <div key={idx} className="p-3 border rounded-lg bg-white shadow-sm flex justify-between items-center">
+                            <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">{acc.code}</p>
+                              <p className="text-sm font-semibold text-slate-800">{acc.name}</p>
+                            </div>
+                            <p className="text-base font-bold text-green-600">{formatCurrency(acc.balance)}</p>
+                          </div>
+                        ))}
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex justify-between items-center">
+                          <p className="text-sm font-bold text-slate-700">Total Revenue</p>
+                          <p className="text-base font-black text-green-600">{formatCurrency(reportData.profitLoss.summary.totalRevenue)}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-green-50">
+                            <tr>
+                              <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
+                              <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
+                              <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportData.profitLoss.revenue.map((acc, idx) => (
+                              <tr key={idx} className="border-b last:border-0">
+                                <td className="p-3 text-slate-600">{acc.code}</td>
+                                <td className="p-3 text-slate-800">{acc.name}</td>
+                                <td className="p-3 text-right text-green-600 font-medium">
+                                  {formatCurrency(acc.balance)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="bg-green-50">
+                            <tr>
+                              <td colSpan={2} className="p-3 font-bold text-slate-700">Total Revenue</td>
+                              <td className="p-3 text-right font-bold text-green-600">
+                                {formatCurrency(reportData.profitLoss.summary.totalRevenue)}
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                        <tfoot className="bg-green-50">
-                          <tr>
-                            <td colSpan={2} className="p-3 font-bold text-slate-700">Total Revenue</td>
-                            <td className="p-3 text-right font-bold text-green-600">
-                              {formatCurrency(reportData.profitLoss.summary.totalRevenue)}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
+                          </tfoot>
+                        </table>
+                      </div>
+                    )}
                   </div>
 
                   {/* Expenses Section */}
                   <div>
                     <h3 className="text-lg font-semibold text-red-600 mb-3">EXPENSES</h3>
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-red-50">
-                          <tr>
-                            <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
-                            <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
-                            <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportData.profitLoss.expenses.map((acc, idx) => (
-                            <tr key={idx} className="border-b last:border-0">
-                              <td className="p-3 text-slate-600">{acc.code}</td>
-                              <td className="p-3 text-slate-800">{acc.name}</td>
-                              <td className="p-3 text-right text-red-600 font-medium">
-                                {formatCurrency(acc.balance)}
+                    {isMobile ? (
+                      <div className="space-y-3">
+                        {reportData.profitLoss.expenses.map((acc, idx) => (
+                          <div key={idx} className="p-3 border rounded-lg bg-white shadow-sm flex justify-between items-center">
+                            <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">{acc.code}</p>
+                              <p className="text-sm font-semibold text-slate-800">{acc.name}</p>
+                            </div>
+                            <p className="text-base font-bold text-red-600">{formatCurrency(acc.balance)}</p>
+                          </div>
+                        ))}
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center">
+                          <p className="text-sm font-bold text-slate-700">Total Expenses</p>
+                          <p className="text-base font-black text-red-600">{formatCurrency(reportData.profitLoss.summary.totalExpenses)}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-red-50">
+                            <tr>
+                              <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
+                              <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
+                              <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportData.profitLoss.expenses.map((acc, idx) => (
+                              <tr key={idx} className="border-b last:border-0">
+                                <td className="p-3 text-slate-600">{acc.code}</td>
+                                <td className="p-3 text-slate-800">{acc.name}</td>
+                                <td className="p-3 text-right text-red-600 font-medium">
+                                  {formatCurrency(acc.balance)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="bg-red-50">
+                            <tr>
+                              <td colSpan={2} className="p-3 font-bold text-slate-700">Total Expenses</td>
+                              <td className="p-3 text-right font-bold text-red-600">
+                                {formatCurrency(reportData.profitLoss.summary.totalExpenses)}
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                        <tfoot className="bg-red-50">
-                          <tr>
-                            <td colSpan={2} className="p-3 font-bold text-slate-700">Total Expenses</td>
-                            <td className="p-3 text-right font-bold text-red-600">
-                              {formatCurrency(reportData.profitLoss.summary.totalExpenses)}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
+                          </tfoot>
+                        </table>
+                      </div>
+                    )}
                   </div>
 
                   {/* Summary Section */}
                   <div className="bg-slate-100 rounded-lg p-4">
-                    <div className="grid grid-cols-3 gap-6 text-center">
-                      <div>
+                    <div className={cn("grid grid-cols-3 gap-6 text-center", isMobile && "grid-cols-1 gap-4")}>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500 mb-1">Net Profit</p>
                         <p className="text-xl font-bold text-emerald-600">
                           {formatCurrency(reportData.profitLoss.summary.netProfit)}
                         </p>
                       </div>
-                      <div>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500 mb-1">Profit Margin</p>
                         <p className="text-xl font-bold text-slate-700">
                           {reportData.profitLoss.summary.profitMargin}%
@@ -1107,57 +1153,95 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
               {/* Trial Balance Report Preview */}
               {reportData.trialBalance && (
                 <div className="space-y-6">
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-blue-50">
-                        <tr>
-                          <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
-                          <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
-                          <th className="text-left p-3 border-b font-medium text-slate-600">Type</th>
-                          <th className="text-right p-3 border-b font-medium text-slate-600">Debit</th>
-                          <th className="text-right p-3 border-b font-medium text-slate-600">Credit</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reportData.trialBalance.trialBalance.map((acc, idx) => (
-                          <tr key={idx} className="border-b last:border-0">
-                            <td className="p-3 text-slate-600">{acc.code}</td>
-                            <td className="p-3 text-slate-800">{acc.name}</td>
-                            <td className="p-3 text-slate-500">{acc.type}</td>
-                            <td className="p-3 text-right text-slate-700">{formatCurrency(acc.debit)}</td>
-                            <td className="p-3 text-right text-slate-700">{formatCurrency(acc.credit)}</td>
+                  {isMobile ? (
+                    <div className="space-y-3">
+                      {reportData.trialBalance.trialBalance.map((acc, idx) => (
+                        <div key={idx} className="p-4 border rounded-lg bg-white shadow-sm space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">{acc.code}</p>
+                              <p className="text-sm font-semibold text-slate-800">{acc.name}</p>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] uppercase font-bold text-slate-500">
+                              {acc.type}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-50">
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">Debit</p>
+                              <p className="text-sm font-bold text-slate-700">{formatCurrency(acc.debit)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">Credit</p>
+                              <p className="text-sm font-bold text-slate-700">{formatCurrency(acc.credit)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm font-bold text-slate-700">Total Debits</p>
+                          <p className="text-base font-black text-blue-600">{formatCurrency(reportData.trialBalance.summary.totalDebits)}</p>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm font-bold text-slate-700">Total Credits</p>
+                          <p className="text-base font-black text-blue-600">{formatCurrency(reportData.trialBalance.summary.totalCredits)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-blue-50">
+                          <tr>
+                            <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
+                            <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
+                            <th className="text-left p-3 border-b font-medium text-slate-600">Type</th>
+                            <th className="text-right p-3 border-b font-medium text-slate-600">Debit</th>
+                            <th className="text-right p-3 border-b font-medium text-slate-600">Credit</th>
                           </tr>
-                        ))}
-                      </tbody>
-                      <tfoot className="bg-blue-50">
-                        <tr>
-                          <td colSpan={3} className="p-3 font-bold text-slate-700">TOTALS</td>
-                          <td className="p-3 text-right font-bold text-blue-600">
-                            {formatCurrency(reportData.trialBalance.summary.totalDebits)}
-                          </td>
-                          <td className="p-3 text-right font-bold text-blue-600">
-                            {formatCurrency(reportData.trialBalance.summary.totalCredits)}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {reportData.trialBalance.trialBalance.map((acc, idx) => (
+                            <tr key={idx} className="border-b last:border-0">
+                              <td className="p-3 text-slate-600">{acc.code}</td>
+                              <td className="p-3 text-slate-800">{acc.name}</td>
+                              <td className="p-3 text-slate-500">{acc.type}</td>
+                              <td className="p-3 text-right text-slate-700">{formatCurrency(acc.debit)}</td>
+                              <td className="p-3 text-right text-slate-700">{formatCurrency(acc.credit)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-blue-50">
+                          <tr>
+                            <td colSpan={3} className="p-3 font-bold text-slate-700">TOTALS</td>
+                            <td className="p-3 text-right font-bold text-blue-600">
+                              {formatCurrency(reportData.trialBalance.summary.totalDebits)}
+                            </td>
+                            <td className="p-3 text-right font-bold text-blue-600">
+                              {formatCurrency(reportData.trialBalance.summary.totalCredits)}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
 
                   <div className="bg-slate-100 rounded-lg p-4">
-                    <div className="grid grid-cols-3 gap-6 text-center">
-                      <div>
+                    <div className={cn("grid grid-cols-3 gap-6 text-center", isMobile && "grid-cols-1 gap-4")}>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500 mb-1">Difference</p>
-                        <p className={`text-xl font-bold ${reportData.trialBalance.summary.isBalanced ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className={cn("text-xl font-bold", reportData.trialBalance.summary.isBalanced ? 'text-green-600' : 'text-red-600')}>
                           {formatCurrency(reportData.trialBalance.summary.difference)}
                         </p>
                       </div>
-                      <div>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500 mb-1">Status</p>
-                        <p className={`text-xl font-bold ${reportData.trialBalance.summary.isBalanced ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className={cn("text-xl font-bold", reportData.trialBalance.summary.isBalanced ? 'text-green-600' : 'text-red-600')}>
                           {reportData.trialBalance.summary.isBalanced ? '✓ Balanced' : '✗ Unbalanced'}
                         </p>
                       </div>
-                      <div>
+                      <div className={isMobile ? "flex justify-between items-center" : ""}>
                         <p className="text-xs text-slate-500 mb-1">Accounts</p>
                         <p className="text-xl font-bold text-slate-700">
                           {reportData.trialBalance.trialBalance.length}
@@ -1177,70 +1261,106 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                     
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Current Assets</h4>
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full text-sm">
-                          <thead className="bg-blue-50">
-                            <tr>
-                              <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
-                              <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
-                              <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {reportData.balanceSheet.balanceSheet.assets.current.map((acc, idx) => (
-                              <tr key={idx} className="border-b last:border-0">
-                                <td className="p-3 text-slate-600">{acc.code}</td>
-                                <td className="p-3 text-slate-800">{acc.name}</td>
-                                <td className="p-3 text-right text-blue-600 font-medium">
-                                  {formatCurrency(acc.balance)}
+                      {isMobile ? (
+                        <div className="space-y-3">
+                          {reportData.balanceSheet.balanceSheet.assets.current.map((acc: any, idx: number) => (
+                            <div key={idx} className="p-3 border rounded-lg bg-white shadow-sm flex justify-between items-center">
+                              <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">{acc.code}</p>
+                                <p className="text-sm font-semibold text-slate-800">{acc.name}</p>
+                              </div>
+                              <p className="text-base font-bold text-blue-600">{formatCurrency(acc.balance)}</p>
+                            </div>
+                          ))}
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex justify-between items-center">
+                            <p className="text-sm font-bold text-slate-700">Total Current Assets</p>
+                            <p className="text-base font-black text-blue-600">{formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.currentAssets)}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="border rounded-lg overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-blue-50">
+                              <tr>
+                                <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
+                                <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
+                                <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reportData.balanceSheet.balanceSheet.assets.current.map((acc: any, idx: number) => (
+                                <tr key={idx} className="border-b last:border-0">
+                                  <td className="p-3 text-slate-600">{acc.code}</td>
+                                  <td className="p-3 text-slate-800">{acc.name}</td>
+                                  <td className="p-3 text-right text-blue-600 font-medium">
+                                    {formatCurrency(acc.balance)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="bg-blue-50">
+                              <tr>
+                                <td colSpan={2} className="p-3 font-bold text-slate-700">Total Current Assets</td>
+                                <td className="p-3 text-right font-bold text-blue-600">
+                                  {formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.currentAssets)}
                                 </td>
                               </tr>
-                            ))}
-                          </tbody>
-                          <tfoot className="bg-blue-50">
-                            <tr>
-                              <td colSpan={2} className="p-3 font-bold text-slate-700">Total Current Assets</td>
-                              <td className="p-3 text-right font-bold text-blue-600">
-                                {formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.currentAssets)}
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Fixed Assets</h4>
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full text-sm">
-                          <thead className="bg-blue-50">
-                            <tr>
-                              <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
-                              <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
-                              <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {reportData.balanceSheet.balanceSheet.assets.fixed.map((acc, idx) => (
-                              <tr key={idx} className="border-b last:border-0">
-                                <td className="p-3 text-slate-600">{acc.code}</td>
-                                <td className="p-3 text-slate-800">{acc.name}</td>
-                                <td className="p-3 text-right text-blue-600 font-medium">
-                                  {formatCurrency(acc.balance)}
+                      {isMobile ? (
+                        <div className="space-y-3">
+                          {reportData.balanceSheet.balanceSheet.assets.fixed.map((acc: any, idx: number) => (
+                            <div key={idx} className="p-3 border rounded-lg bg-white shadow-sm flex justify-between items-center">
+                              <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">{acc.code}</p>
+                                <p className="text-sm font-semibold text-slate-800">{acc.name}</p>
+                              </div>
+                              <p className="text-base font-bold text-blue-600">{formatCurrency(acc.balance)}</p>
+                            </div>
+                          ))}
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex justify-between items-center">
+                            <p className="text-sm font-bold text-slate-700">Total Fixed Assets</p>
+                            <p className="text-base font-black text-blue-600">{formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.fixedAssets)}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="border rounded-lg overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-blue-50">
+                              <tr>
+                                <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
+                                <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
+                                <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reportData.balanceSheet.balanceSheet.assets.fixed.map((acc: any, idx: number) => (
+                                <tr key={idx} className="border-b last:border-0">
+                                  <td className="p-3 text-slate-600">{acc.code}</td>
+                                  <td className="p-3 text-slate-800">{acc.name}</td>
+                                  <td className="p-3 text-right text-blue-600 font-medium">
+                                    {formatCurrency(acc.balance)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="bg-blue-50">
+                              <tr>
+                                <td colSpan={2} className="p-3 font-bold text-slate-700">Total Fixed Assets</td>
+                                <td className="p-3 text-right font-bold text-blue-600">
+                                  {formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.fixedAssets)}
                                 </td>
                               </tr>
-                            ))}
-                          </tbody>
-                          <tfoot className="bg-blue-50">
-                            <tr>
-                              <td colSpan={2} className="p-3 font-bold text-slate-700">Total Fixed Assets</td>
-                              <td className="p-3 text-right font-bold text-blue-600">
-                                {formatCurrency(reportData.balanceSheet.balanceSheet.assets.totals.fixedAssets)}
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )}
                     </div>
 
                     <div className="bg-blue-100 rounded-lg p-4 text-center">
@@ -1257,70 +1377,106 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                     
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Current Liabilities</h4>
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full text-sm">
-                          <thead className="bg-orange-50">
-                            <tr>
-                              <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
-                              <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
-                              <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {reportData.balanceSheet.balanceSheet.liabilities.current.map((acc, idx) => (
-                              <tr key={idx} className="border-b last:border-0">
-                                <td className="p-3 text-slate-600">{acc.code}</td>
-                                <td className="p-3 text-slate-800">{acc.name}</td>
-                                <td className="p-3 text-right text-orange-600 font-medium">
-                                  {formatCurrency(acc.balance)}
+                      {isMobile ? (
+                        <div className="space-y-3">
+                          {reportData.balanceSheet.balanceSheet.liabilities.current.map((acc: any, idx: number) => (
+                            <div key={idx} className="p-3 border rounded-lg bg-white shadow-sm flex justify-between items-center">
+                              <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">{acc.code}</p>
+                                <p className="text-sm font-semibold text-slate-800">{acc.name}</p>
+                              </div>
+                              <p className="text-base font-bold text-orange-600">{formatCurrency(acc.balance)}</p>
+                            </div>
+                          ))}
+                          <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg flex justify-between items-center">
+                            <p className="text-sm font-bold text-slate-700">Total Current Liabilities</p>
+                            <p className="text-base font-black text-orange-600">{formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.currentLiabilities)}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="border rounded-lg overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-orange-50">
+                              <tr>
+                                <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
+                                <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
+                                <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reportData.balanceSheet.balanceSheet.liabilities.current.map((acc: any, idx: number) => (
+                                <tr key={idx} className="border-b last:border-0">
+                                  <td className="p-3 text-slate-600">{acc.code}</td>
+                                  <td className="p-3 text-slate-800">{acc.name}</td>
+                                  <td className="p-3 text-right text-orange-600 font-medium">
+                                    {formatCurrency(acc.balance)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="bg-orange-50">
+                              <tr>
+                                <td colSpan={2} className="p-3 font-bold text-slate-700">Total Current Liabilities</td>
+                                <td className="p-3 text-right font-bold text-orange-600">
+                                  {formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.currentLiabilities)}
                                 </td>
                               </tr>
-                            ))}
-                          </tbody>
-                          <tfoot className="bg-orange-50">
-                            <tr>
-                              <td colSpan={2} className="p-3 font-bold text-slate-700">Total Current Liabilities</td>
-                              <td className="p-3 text-right font-bold text-orange-600">
-                                {formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.currentLiabilities)}
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-slate-600 mb-2">Long-term Liabilities</h4>
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full text-sm">
-                          <thead className="bg-orange-50">
-                            <tr>
-                              <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
-                              <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
-                              <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {reportData.balanceSheet.balanceSheet.liabilities.longTerm.map((acc, idx) => (
-                              <tr key={idx} className="border-b last:border-0">
-                                <td className="p-3 text-slate-600">{acc.code}</td>
-                                <td className="p-3 text-slate-800">{acc.name}</td>
-                                <td className="p-3 text-right text-orange-600 font-medium">
-                                  {formatCurrency(acc.balance)}
+                      {isMobile ? (
+                        <div className="space-y-3">
+                          {reportData.balanceSheet.balanceSheet.liabilities.longTerm.map((acc: any, idx: number) => (
+                            <div key={idx} className="p-3 border rounded-lg bg-white shadow-sm flex justify-between items-center">
+                              <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">{acc.code}</p>
+                                <p className="text-sm font-semibold text-slate-800">{acc.name}</p>
+                              </div>
+                              <p className="text-base font-bold text-orange-600">{formatCurrency(acc.balance)}</p>
+                            </div>
+                          ))}
+                          <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg flex justify-between items-center">
+                            <p className="text-sm font-bold text-slate-700">Total Long-term Liabilities</p>
+                            <p className="text-base font-black text-orange-600">{formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.longTermLiabilities)}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="border rounded-lg overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-orange-50">
+                              <tr>
+                                <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
+                                <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
+                                <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reportData.balanceSheet.balanceSheet.liabilities.longTerm.map((acc: any, idx: number) => (
+                                <tr key={idx} className="border-b last:border-0">
+                                  <td className="p-3 text-slate-600">{acc.code}</td>
+                                  <td className="p-3 text-slate-800">{acc.name}</td>
+                                  <td className="p-3 text-right text-orange-600 font-medium">
+                                    {formatCurrency(acc.balance)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="bg-orange-50">
+                              <tr>
+                                <td colSpan={2} className="p-3 font-bold text-slate-700">Total Long-term Liabilities</td>
+                                <td className="p-3 text-right font-bold text-orange-600">
+                                  {formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.longTermLiabilities)}
                                 </td>
                               </tr>
-                            ))}
-                          </tbody>
-                          <tfoot className="bg-orange-50">
-                            <tr>
-                              <td colSpan={2} className="p-3 font-bold text-slate-700">Total Long-term Liabilities</td>
-                              <td className="p-3 text-right font-bold text-orange-600">
-                                {formatCurrency(reportData.balanceSheet.balanceSheet.liabilities.totals.longTermLiabilities)}
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )}
                     </div>
 
                     <div className="bg-orange-100 rounded-lg p-4 text-center">
@@ -1334,86 +1490,107 @@ export default function AccountingReportsModal({ isOpen, onClose }: AccountingRe
                   {/* Equity Section */}
                   <div>
                     <h3 className="text-lg font-semibold text-purple-600 mb-3">EQUITY</h3>
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-purple-50">
-                          <tr>
-                            <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
-                            <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
-                            <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportData.balanceSheet.balanceSheet.equity.map((acc, idx) => (
-                            <tr key={idx} className="border-b last:border-0">
-                              <td className="p-3 text-slate-600">{acc.code}</td>
-                              <td className="p-3 text-slate-800">{acc.name}</td>
-                              <td className="p-3 text-right text-purple-600 font-medium">
-                                {formatCurrency(acc.balance)}
+                    {isMobile ? (
+                      <div className="space-y-3">
+                        {reportData.balanceSheet.balanceSheet.equity.map((acc: any, idx: number) => (
+                          <div key={idx} className="p-3 border rounded-lg bg-white shadow-sm flex justify-between items-center">
+                            <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">{acc.code}</p>
+                              <p className="text-sm font-semibold text-slate-800">{acc.name}</p>
+                            </div>
+                            <p className="text-base font-bold text-purple-600">{formatCurrency(acc.balance)}</p>
+                          </div>
+                        ))}
+                        <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg flex justify-between items-center">
+                          <p className="text-sm font-bold text-slate-700">Total Equity</p>
+                          <p className="text-base font-black text-purple-600">{formatCurrency(reportData.balanceSheet.balanceSheet.totals.totalEquity)}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-purple-50">
+                            <tr>
+                              <th className="text-left p-3 border-b font-medium text-slate-600">Code</th>
+                              <th className="text-left p-3 border-b font-medium text-slate-600">Account</th>
+                              <th className="text-right p-3 border-b font-medium text-slate-600">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportData.balanceSheet.balanceSheet.equity.map((acc: any, idx: number) => (
+                              <tr key={idx} className="border-b last:border-0">
+                                <td className="p-3 text-slate-600">{acc.code}</td>
+                                <td className="p-3 text-slate-800">{acc.name}</td>
+                                <td className="p-3 text-right text-purple-600 font-medium">
+                                  {formatCurrency(acc.balance)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="bg-purple-50">
+                            <tr>
+                              <td colSpan={2} className="p-3 font-bold text-slate-700">Total Equity</td>
+                              <td className="p-3 text-right font-bold text-purple-600">
+                                {formatCurrency(reportData.balanceSheet.balanceSheet.totals.totalEquity)}
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                        <tfoot className="bg-purple-50">
-                          <tr>
-                            <td colSpan={2} className="p-3 font-bold text-slate-700">Total Equity</td>
-                            <td className="p-3 text-right font-bold text-purple-600">
-                              {formatCurrency(reportData.balanceSheet.balanceSheet.totals.totalEquity)}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
+                          </tfoot>
+                        </table>
+                      </div>
+                    )}
                   </div>
 
                   {/* Summary Section */}
                   <div className="space-y-4">
                     <div className="bg-purple-100 rounded-lg p-4 text-center">
-                      <p className="text-sm text-purple-600 mb-1">TOTAL LIABILITIES & EQUITY</p>
-                      <p className="text-2xl font-bold text-purple-700">
+                      <p className="text-sm text-purple-600 mb-1 uppercase tracking-widest font-bold">Total Liabilities & Equity</p>
+                      <p className="text-2xl font-black text-purple-700">
                         {formatCurrency(reportData.balanceSheet.balanceSheet.totals.totalLiabilitiesAndEquity)}
                       </p>
                     </div>
 
-                    <div className={`rounded-lg p-4 text-center ${
+                    <div className={cn("rounded-lg p-4 text-center", 
                       reportData.balanceSheet.accountingEquation.isBalanced 
-                        ? 'bg-green-100' 
-                        : 'bg-red-100'
-                    }`}>
-                      <p className={`text-lg font-bold ${
+                        ? 'bg-emerald-100 border border-emerald-200' 
+                        : 'bg-red-100 border border-red-200'
+                    )}>
+                      <p className={cn("text-lg font-black", 
                         reportData.balanceSheet.accountingEquation.isBalanced 
-                          ? 'text-green-700' 
+                          ? 'text-emerald-700' 
                           : 'text-red-700'
-                      }`}>
+                      )}>
                         {reportData.balanceSheet.accountingEquation.isBalanced 
-                          ? '✓ Balance Sheet is Balanced (Assets = Liabilities + Equity)' 
+                          ? '✓ Balance Sheet is Balanced' 
                           : '✗ Balance Sheet is NOT Balanced'}
                       </p>
-                      <p className="text-sm text-slate-500 mt-1">
-                        Assets: {formatCurrency(reportData.balanceSheet.accountingEquation.assets)} | 
-                        Liabilities + Equity: {formatCurrency(reportData.balanceSheet.accountingEquation.liabilitiesAndEquity)}
-                      </p>
+                      <div className={cn("flex justify-center gap-2 text-[10px] font-bold mt-1 uppercase", isMobile ? "flex-col gap-0" : "")}>
+                        <span className="text-slate-500">Assets: {formatCurrency(reportData.balanceSheet.accountingEquation.assets)}</span>
+                        {!isMobile && <span className="text-slate-300">|</span>}
+                        <span className="text-slate-500">Liab + Eq: {formatCurrency(reportData.balanceSheet.accountingEquation.liabilitiesAndEquity)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-8 text-slate-500">
-              No report data available. Please generate a report first.
+            <div className="text-center py-20 text-slate-500">
+              <FileText className="w-12 h-12 mx-auto mb-4 opacity-20" />
+              <p className="font-medium">No report data available</p>
+              <p className="text-xs">Please generate a report first.</p>
             </div>
           )}
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
-          <Button variant="outline" className="px-6" onClick={() => setShowPreview(false)}>
-            Close
+        <DialogFooter className={cn("px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0", isMobile && "flex-col pt-4")}>
+          <Button variant="outline" className={cn("px-6", isMobile && "w-full order-3")} onClick={() => setShowPreview(false)}>
+            Close Preview
           </Button>
-          <Button variant="outline" className="px-6" onClick={handlePrint}>
+          <Button variant="outline" className={cn("px-6", isMobile && "w-full order-2")} onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />
             Print
           </Button>
-          <Button className="px-8 bg-blue-600 hover:bg-blue-700" onClick={handleDownloadPDF}>
+          <Button className={cn("px-8 bg-blue-600 hover:bg-blue-700", isMobile && "w-full order-1")} onClick={handleDownloadPDF}>
             <Download className="w-4 h-4 mr-2" />
             Download PDF
           </Button>

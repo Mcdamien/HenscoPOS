@@ -28,6 +28,7 @@ import {
 import { cn, handleNumberKeyDown, handleIntegerKeyDown } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { dexieDb } from '@/lib/dexie'
 import { useSync } from '@/components/providers/SyncProvider'
 import { v4 as uuidv4 } from 'uuid'
@@ -75,6 +76,7 @@ function useDebounce<T>(value: T, delay: number): T {
 const FIELD_COUNT = 6
 
 export default function AddProductModal({ isOpen, onClose, onSuccess, products }: AddProductModalProps) {
+  const isMobile = useIsMobile()
   const [formData, setFormData] = useState({
     name: '',
     cost: '',
@@ -232,7 +234,10 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className={cn(
+        "max-w-2xl flex flex-col p-0 overflow-hidden",
+        isMobile ? "w-full h-full max-h-screen rounded-none" : "h-[80vh]"
+      )}>
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5 text-blue-600" />
@@ -240,7 +245,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <form id="add-product-form" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-semibold text-slate-700">Product Name</Label>
@@ -262,18 +267,23 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
                       }
                     }}
                   >
-                    {formData.name || "Search or enter product name..."}
+                    <span className="truncate">{formData.name || "Search or enter product name..."}</span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <PopoverContent 
+                  className="w-[--radix-popover-trigger-width] p-0" 
+                  align="start"
+                  side={isMobile ? "bottom" : "bottom"}
+                  avoidCollisions={true}
+                >
                   <Command>
                     <CommandInput 
                       placeholder="Type product name..." 
                       value={searchQuery}
                       onValueChange={(val) => setSearchQuery(val)}
                     />
-                    <CommandList>
+                    <CommandList className={isMobile ? "max-h-[200px]" : "max-h-[300px]"}>
                       <CommandEmpty>No existing product found. You can continue typing to add this as a new product.</CommandEmpty>
                       <CommandGroup heading="Select Existing Product">
                         {filteredProducts.map((product) => (
@@ -298,7 +308,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
               </Popover>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
                 <Label htmlFor="cost" className="text-sm font-semibold text-slate-700">Cost (GHS)</Label>
                 <Input
@@ -357,12 +367,18 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
           </form>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+        <DialogFooter className={cn(
+          "px-6 py-4 border-t flex flex-row justify-end gap-3 bg-slate-50 flex-shrink-0",
+          isMobile && "grid grid-cols-2 gap-2"
+        )}>
           <Button 
             ref={registerField(4)}
             type="button" 
             variant="outline" 
-            className="h-11 px-6 border-slate-300 text-slate-700 hover:bg-slate-100"
+            className={cn(
+              "h-11 px-6 border-slate-300 text-slate-700 hover:bg-slate-100",
+              isMobile && "w-full"
+            )}
             onClick={handleClose}
             onKeyDown={(e) => {
               if (e.key === 'Tab' && e.shiftKey) {
@@ -379,7 +395,10 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
             ref={registerField(5)}
             type="submit" 
             form="add-product-form"
-            className="h-11 px-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+            className={cn(
+              "h-11 px-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm",
+              isMobile && "w-full"
+            )}
             disabled={submitting}
             onKeyDown={(e) => {
               if (e.key === 'Tab' && e.shiftKey) {
@@ -391,6 +410,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess, products }
             {submitting ? 'Adding...' : 'Save Product'}
           </Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   )

@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { handleIntegerKeyDown, handleNumberKeyDown, cn } from '@/lib/utils'
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { dexieDb } from '@/lib/dexie'
 import { useSync } from '@/components/providers/SyncProvider'
 import { v4 as uuidv4 } from 'uuid'
@@ -52,6 +53,7 @@ export default function EditStoreProductModal({
   storeInventory,
   currentStoreId 
 }: EditStoreProductModalProps) {
+  const isMobile = useIsMobile()
   const [formData, setFormData] = useState({
     changeType: 'add',
     qty: '',
@@ -177,7 +179,10 @@ export default function EditStoreProductModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl h-[85vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className={cn(
+        "max-w-2xl flex flex-col p-0 overflow-hidden",
+        isMobile ? "w-full h-full max-h-screen rounded-none" : "h-[85vh]"
+      )}>
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <Store className="w-6 h-6 text-emerald-600" />
@@ -185,10 +190,10 @@ export default function EditStoreProductModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <form id="edit-store-product-form" onSubmit={handleSubmit} className="space-y-6">
             {/* Context Header */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <Package className="w-4 h-4 text-emerald-600" />
@@ -219,14 +224,14 @@ export default function EditStoreProductModal({
             {/* Change Type Selection */}
             <div className="space-y-3">
               <Label className="text-sm font-bold text-slate-700">Action Type</Label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {['add', 'remove', 'adjust'].map((type, idx) => (
                   <Button
                     key={type}
                     type="button"
                     variant={formData.changeType === type ? 'default' : 'outline'}
                     className={cn(
-                      "flex-1 h-12 capitalize font-bold rounded-xl transition-all",
+                      "h-11 md:h-12 capitalize font-bold rounded-xl transition-all text-xs md:text-sm",
                       formData.changeType === type 
                         ? (type === 'add' ? 'bg-emerald-600 hover:bg-emerald-700' : type === 'remove' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-slate-800 hover:bg-slate-900')
                         : "border-slate-300 text-slate-600 hover:bg-slate-50"
@@ -240,11 +245,11 @@ export default function EditStoreProductModal({
             </div>
 
             {/* Quantity and Metrics */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-6 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="qty" className="text-sm font-bold text-slate-700">
-                  {formData.changeType === 'add' && 'Quantity to Request (from Warehouse)'}
-                  {formData.changeType === 'remove' && 'Quantity to Return/Remove'}
+                  {formData.changeType === 'add' && 'Quantity to Request'}
+                  {formData.changeType === 'remove' && 'Quantity to Return'}
                   {formData.changeType === 'adjust' && 'New Stock Level Target'}
                 </Label>
                 <Input
@@ -253,7 +258,7 @@ export default function EditStoreProductModal({
                   type="number"
                   min="0"
                   placeholder="Enter quantity"
-                  className="h-14 text-xl font-bold border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                  className="h-12 md:h-14 text-lg md:text-xl font-bold border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
                   value={formData.qty}
                   onChange={(e) => setFormData({ ...formData, qty: e.target.value })}
                   onKeyDown={(e) => {
@@ -271,9 +276,9 @@ export default function EditStoreProductModal({
                       "w-2 h-2 rounded-full",
                       formData.changeType === 'add' ? "bg-emerald-500" : "bg-orange-500"
                     )} />
-                    <span className="text-sm font-medium text-slate-600">Expected Final Stock</span>
+                    <span className="text-xs md:text-sm font-medium text-slate-600">Expected Final Stock</span>
                   </div>
-                  <span className="text-lg font-black text-slate-900">
+                  <span className="text-base md:text-lg font-black text-slate-900">
                     {formData.changeType === 'adjust' 
                       ? formData.qty 
                       : formData.changeType === 'add'
@@ -286,16 +291,16 @@ export default function EditStoreProductModal({
             </div>
 
             {/* Pricing Adjustments */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
-                <Label htmlFor="newCost" className="text-sm font-bold text-slate-700 text-slate-500">New Cost (Optional)</Label>
+                <Label htmlFor="newCost" className="text-xs md:text-sm font-bold text-slate-500">New Cost (Optional)</Label>
                 <Input
                   ref={registerField(2)}
                   id="newCost"
                   type="number"
                   step="0.01"
                   placeholder={`Current: ${product.cost}`}
-                  className="h-12 border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                  className="h-11 md:h-12 border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
                   value={formData.newCost}
                   onChange={(e) => setFormData({ ...formData, newCost: e.target.value })}
                   onKeyDown={(e) => {
@@ -305,14 +310,14 @@ export default function EditStoreProductModal({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="newPrice" className="text-sm font-bold text-slate-700 text-slate-500">New Price (Optional)</Label>
+                <Label htmlFor="newPrice" className="text-xs md:text-sm font-bold text-slate-500">New Price (Optional)</Label>
                 <Input
                   ref={registerField(3)}
                   id="newPrice"
                   type="number"
                   step="0.01"
                   placeholder={`Current: ${product.price}`}
-                  className="h-12 border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                  className="h-11 md:h-12 border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
                   value={formData.newPrice}
                   onChange={(e) => setFormData({ ...formData, newPrice: e.target.value })}
                   onKeyDown={(e) => {
@@ -329,8 +334,8 @@ export default function EditStoreProductModal({
               <Input
                 ref={registerField(4)}
                 id="reason"
-                placeholder="e.g., Damaged goods, stock count correction, price update"
-                className="h-12 border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                placeholder="e.g., Damaged goods, stock count correction"
+                className="h-11 md:h-12 border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
                 value={formData.reason}
                 onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                 onKeyDown={(e) => handleKeyDown(e, 4)}
@@ -338,26 +343,32 @@ export default function EditStoreProductModal({
             </div>
 
             {/* Approval Warning */}
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
-              <div className="w-10 h-10 bg-amber-100 rounded-xl flex-shrink-0 flex items-center justify-center">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 md:p-4 flex gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-amber-100 rounded-xl flex-shrink-0 flex items-center justify-center">
                 <span className="text-amber-700 font-bold">!</span>
               </div>
               <div>
-                <p className="text-sm font-bold text-amber-900">Approval Required</p>
-                <p className="text-xs text-amber-700 leading-relaxed mt-0.5">
-                  This request will be sent to the Warehouse Manager. Inventory will not be updated until the request is approved.
+                <p className="text-xs md:text-sm font-bold text-amber-900">Approval Required</p>
+                <p className="text-[10px] md:text-xs text-amber-700 leading-relaxed mt-0.5">
+                  This request will be sent to the Warehouse Manager. Inventory will not be updated until approved.
                 </p>
               </div>
             </div>
           </form>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t flex justify-end gap-3 bg-slate-50 flex-shrink-0">
+        <DialogFooter className={cn(
+          "px-6 py-4 border-t flex flex-row justify-end gap-3 bg-slate-50 flex-shrink-0",
+          isMobile && "grid grid-cols-2 gap-2"
+        )}>
           <Button 
             ref={registerField(5)}
             type="button" 
             variant="outline" 
-            className="h-12 px-8 font-semibold border-slate-300 rounded-xl transition-all hover:bg-slate-100"
+            className={cn(
+              "h-11 md:h-12 px-6 md:px-8 font-semibold border-slate-300 rounded-xl transition-all hover:bg-slate-100",
+              isMobile && "w-full px-0"
+            )}
             onClick={handleClose}
             onKeyDown={(e) => {
               if (e.key === 'Tab' && e.shiftKey) {
@@ -374,7 +385,10 @@ export default function EditStoreProductModal({
             ref={registerField(6)}
             type="submit" 
             form="edit-store-product-form"
-            className="h-12 px-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md rounded-xl transition-all active:scale-95"
+            className={cn(
+              "h-11 md:h-12 px-8 md:px-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md rounded-xl transition-all active:scale-95",
+              isMobile && "w-full px-0"
+            )}
             disabled={submitting}
             onKeyDown={(e) => {
               if (e.key === 'Tab' && e.shiftKey) {
@@ -383,7 +397,7 @@ export default function EditStoreProductModal({
               }
             }}
           >
-            {submitting ? 'Submitting...' : 'Submit Request'}
+            {submitting ? 'Submitting...' : 'Submit'}
           </Button>
         </DialogFooter>
       </DialogContent>
