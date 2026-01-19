@@ -51,30 +51,34 @@ export default function Home() {
   return (
     <div className="h-screen max-h-screen flex bg-slate-50 overflow-hidden fixed inset-0">
       {/* Sidebar */}
-      <nav className="w-64 bg-white border-r border-slate-200 flex flex-col z-10 shrink-0">
-        <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto">
+      <nav className="w-20 hover:w-64 bg-white border-r border-slate-200 flex flex-col z-10 shrink-0 transition-all duration-300 ease-in-out group">
+        <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto overflow-x-hidden">
           {navItems.map((item) => {
             const Icon = item.icon
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all shrink-0 ${
+                className={`flex items-center group-hover:gap-3 gap-0 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 shrink-0 ${
                   activeView === item.id
                     ? 'bg-emerald-50 text-emerald-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-emerald-600'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                {item.label}
+                <Icon className="w-5 h-5 shrink-0" />
+                <span className="opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap overflow-hidden">
+                  {item.label}
+                </span>
               </button>
             )
           })}
         </div>
 
-        <div className="p-4 border-t border-slate-200 shrink-0">
-          <div className="mt-2">
-            <p className="text-center text-sm text-slate-400">By McDamien Copyright © 2026</p>
+        <div className="p-4 border-t border-slate-200 shrink-0 overflow-hidden">
+          <div className="mt-2 whitespace-nowrap">
+            <p className="text-center text-sm text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              By McDamien Copyright © 2026
+            </p>
           </div>
         </div>
       </nav>
