@@ -42,7 +42,7 @@ interface Product {
 
 interface InventoryWithProduct extends Product {
   storeStock: number
-  isPendingRemoval?: boolean
+  isPendingRemoval: boolean
 }
 
 interface ApprovedReturn {
@@ -86,6 +86,61 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
     return allStores.find(s => s.name === currentStore)?.id
   }, [allStores, currentStore])
 
+  // Derived products for the current store
+  const products = useMemo(() => {
+    if (!currentStoreId) return []
+
+    return allProducts.map(p => {
+      const inv = storeInventory.find(i => i.productId === p.id && i.storeId === currentStoreId)
+      
+      // Check if there's a pending removal for this product
+      const isPendingRemoval = allPendingChanges.some(c => 
+        c.productId === p.id && 
+        c.storeId === currentStoreId && 
+        c.changeType === 'remove_product' && 
+        c.status === 'pending'
+      )
+
+      if (!inv && !isPendingRemoval) return null
+
+      return {
+        id: p.id,
+        itemId: p.itemId,
+        name: p.name,
+        price: p.price,
+        warehouseStock: p.warehouseStock,
+        storeStock: inv ? inv.stock : 0,
+        isPendingRemoval
+      }
+    }).filter((p): p is InventoryWithProduct => p !== null)
+  }, [allProducts, storeInventory, currentStoreId, allPendingChanges])
+
+  const pendingTransfers = useMemo(() => {
+    return allTransfers
+      .filter(t => t.toStore === currentStore && t.status === 'pending')
+      .map(t => ({
+        ...t,
+        items: allTransferItems.filter(item => item.stockTransferId === t.id)
+      })) as Transfer[]
+  }, [allTransfers, allTransferItems, currentStore])
+
+  const approvedReturns = useMemo(() => {
+    if (!currentStoreId) return []
+
+    return allPendingChanges.filter(c => 
+      c.storeId === currentStoreId && 
+      (c.changeType === 'return' || c.changeType === 'remove_product') && 
+      c.status === 'approved'
+    )
+  }, [allPendingChanges, currentStoreId])
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(p.itemId).includes(searchTerm)
+    )
+  }, [products, searchTerm])
+
   const toggleProductSelection = (productId: string) => {
     const newSelected = new Set(selectedProductIds)
     if (newSelected.has(productId)) {
@@ -100,7 +155,7 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
     if (selectedProductIds.size === filteredProducts.length) {
       setSelectedProductIds(new Set())
     } else {
-      setSelectedProductIds(new Set(filteredProducts.map(p => p.id)))
+      setSelectedProductIds(new Set(filteredProducts.filter(p => p !== null).map(p => p.id)))
     }
   }
 
@@ -113,10 +168,11 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
         return
       }
 
-      const productsToRemove = filteredProducts.filter(p => selectedProductIds.has(p.id))
+      const productsToRemove = filteredProducts.filter(p => p !== null && selectedProductIds.has(p.id))
       
       await dexieDb.transaction('rw', [dexieDb.inventories, dexieDb.pendingChanges, dexieDb.syncQueue], async () => {
         for (const product of productsToRemove) {
+          if (!product) continue
           if (product.storeStock > 0) {
             // Approval required
             const removeData = {
@@ -272,54 +328,6 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
     }
   }
 
-  // Derived products for the current store
-  const products = useMemo(() => {
-    if (!currentStoreId) return []
-
-    return allProducts.map(p => {
-      const inv = storeInventory.find(i => i.productId === p.id && i.storeId === currentStoreId)
-      
-      // Check if there's a pending removal for this product
-      const isPendingRemoval = allPendingChanges.some(c => 
-        c.productId === p.id && 
-        c.storeId === currentStoreId && 
-        c.changeType === 'remove_product' && 
-        c.status === 'pending'
-      )
-
-      if (!inv && !isPendingRemoval) return null
-
-      return {
-        id: p.id,
-        itemId: p.itemId,
-        name: p.name,
-        price: p.price,
-        warehouseStock: p.warehouseStock,
-        storeStock: inv ? inv.stock : 0,
-        isPendingRemoval
-      }
-    }).filter((p): p is InventoryWithProduct => p !== null)
-  }, [allProducts, storeInventory, currentStoreId, allPendingChanges])
-
-  const pendingTransfers = useMemo(() => {
-    return allTransfers
-      .filter(t => t.toStore === currentStore && t.status === 'pending')
-      .map(t => ({
-        ...t,
-        items: allTransferItems.filter(item => item.stockTransferId === t.id)
-      })) as Transfer[]
-  }, [allTransfers, allTransferItems, currentStore])
-
-  const approvedReturns = useMemo(() => {
-    if (!currentStoreId) return []
-
-    return allPendingChanges.filter(c => 
-      c.storeId === currentStoreId && 
-      (c.changeType === 'return' || c.changeType === 'remove_product') && 
-      c.status === 'approved'
-    )
-  }, [allPendingChanges, currentStoreId])
-
   const pendingTransfersCount = pendingTransfers.length
 
   const formatCurrency = (amount: number) => {
@@ -335,11 +343,6 @@ export default function StoreInventoryView({ stores, currentStore, onStoreChange
     if (stock < 11) return { label: 'Low Stock', className: 'bg-amber-100 text-amber-700' }
     return { label: 'In Stock', className: 'bg-emerald-100 text-emerald-700' }
   }
-
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    String(p.itemId).includes(searchTerm)
-  )
 
   // Helper to get approved return qty for a product
   const getApprovedReturnQtyForProduct = (productId: string) => {

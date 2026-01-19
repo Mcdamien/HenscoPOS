@@ -26,123 +26,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     setIsSyncing(true)
     try {
-      // 1. Sync Products
-      const productsRes = await fetch('/api/products')
-      if (productsRes.ok) {
-        const products = await productsRes.json()
-        await dexieDb.products.bulkPut(products)
-      }
-
-      // 2. Sync Stores
-      const storesRes = await fetch('/api/stores')
-      if (storesRes.ok) {
-        const stores = await storesRes.json()
-        await dexieDb.stores.bulkPut(stores)
-      }
-
-      // 3. Sync Inventories
-      const invRes = await fetch('/api/inventory/all')
-      if (invRes.ok) {
-        const inv = await invRes.json()
-        await dexieDb.inventories.bulkPut(inv)
-      }
-
-      // 4. Sync Pending Changes
-      const pendingRes = await fetch('/api/inventory/pending-changes?status=pending')
-      if (pendingRes.ok) {
-        const data = await pendingRes.json()
-        await dexieDb.pendingChanges.bulkPut(data.changes)
-      }
-
-      // 5. Sync Transfers
-      const transfersRes = await fetch('/api/transfer')
-      if (transfersRes.ok) {
-        const transfers = await transfersRes.json()
-        for (const t of transfers) {
-          await dexieDb.stockTransfers.put({
-            id: t.id,
-            transferId: t.transferId,
-            fromStore: t.fromStore,
-            toStore: t.toStore,
-            status: t.status,
-            createdAt: new Date(t.createdAt),
-            updatedAt: new Date(t.updatedAt),
-            confirmedAt: t.confirmedAt ? new Date(t.confirmedAt) : null,
-            confirmedBy: t.confirmedBy,
-            cancelledAt: t.cancelledAt ? new Date(t.cancelledAt) : null,
-            cancelledReason: t.cancelledReason
-          })
-          if (t.items) {
-            await dexieDb.stockTransferItems.bulkPut(t.items.map((i: any) => ({
-              id: i.id,
-              stockTransferId: t.id,
-              productId: i.productId,
-              itemName: i.itemName,
-              qty: i.qty
-            })))
-          }
-        }
-      }
-
-      // 6. Sync Additions
-      const additionsRes = await fetch('/api/inventory/addition')
-      if (additionsRes.ok) {
-        const additions = await additionsRes.json()
-        for (const a of additions) {
-          await dexieDb.inventoryAdditions.put({
-            id: a.id,
-            additionId: a.additionId,
-            referenceId: a.referenceId,
-            totalCost: a.totalCost,
-            createdAt: new Date(a.createdAt),
-            updatedAt: new Date(a.updatedAt)
-          })
-          if (a.items) {
-            await dexieDb.inventoryAdditionItems.bulkPut(a.items.map((i: any) => ({
-              id: i.id,
-              inventoryAdditionId: a.id,
-              productId: i.productId,
-              itemName: i.itemName,
-              cost: i.cost,
-              price: i.price,
-              qty: i.qty
-            })))
-          }
-        }
-      }
-
-      // 7. Sync Recent Transactions
-      const txRes = await fetch('/api/transactions')
-      if (txRes.ok) {
-        const transactions = await txRes.json()
-        for (const tx of transactions) {
-          await dexieDb.transactions.put({
-            id: tx.id,
-            transactionId: tx.transactionId,
-            storeId: tx.storeId,
-            subtotal: tx.subtotal,
-            tax: tx.tax,
-            total: tx.total,
-            createdAt: new Date(tx.createdAt || tx.date),
-            synced: 1
-          })
-          
-          if (tx.items) {
-            const items = tx.items.map((item: any) => ({
-              id: item.id,
-              transactionId: tx.id,
-              productId: item.productId || item.id,
-              itemName: item.itemName || item.name,
-              itemPrice: item.itemPrice || item.price,
-              itemCost: item.itemCost || 0,
-              qty: item.qty
-            }))
-            await dexieDb.transactionItems.bulkPut(items)
-          }
-        }
-      }
-
-      // 8. Process Sync Queue
+      // 1. Process Sync Queue FIRST
       const queueItems = await dexieDb.syncQueue.orderBy('timestamp').toArray()
       for (const item of queueItems) {
         try {
@@ -189,6 +73,122 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (e) {
           console.error(`Failed to sync queue item ${item.id}:`, e)
+        }
+      }
+
+      // 2. Sync Products
+      const productsRes = await fetch('/api/products')
+      if (productsRes.ok) {
+        const products = await productsRes.json()
+        await dexieDb.products.bulkPut(products)
+      }
+
+      // 3. Sync Stores
+      const storesRes = await fetch('/api/stores')
+      if (storesRes.ok) {
+        const stores = await storesRes.json()
+        await dexieDb.stores.bulkPut(stores)
+      }
+
+      // 4. Sync Inventories
+      const invRes = await fetch('/api/inventory/all')
+      if (invRes.ok) {
+        const inv = await invRes.json()
+        await dexieDb.inventories.bulkPut(inv)
+      }
+
+      // 5. Sync Pending Changes
+      const pendingRes = await fetch('/api/inventory/pending-changes?status=pending')
+      if (pendingRes.ok) {
+        const data = await pendingRes.json()
+        await dexieDb.pendingChanges.bulkPut(data.changes)
+      }
+
+      // 6. Sync Transfers
+      const transfersRes = await fetch('/api/transfer')
+      if (transfersRes.ok) {
+        const transfers = await transfersRes.json()
+        for (const t of transfers) {
+          await dexieDb.stockTransfers.put({
+            id: t.id,
+            transferId: t.transferId,
+            fromStore: t.fromStore,
+            toStore: t.toStore,
+            status: t.status,
+            createdAt: new Date(t.createdAt),
+            updatedAt: new Date(t.updatedAt),
+            confirmedAt: t.confirmedAt ? new Date(t.confirmedAt) : null,
+            confirmedBy: t.confirmedBy,
+            cancelledAt: t.cancelledAt ? new Date(t.cancelledAt) : null,
+            cancelledReason: t.cancelledReason
+          })
+          if (t.items) {
+            await dexieDb.stockTransferItems.bulkPut(t.items.map((i: any) => ({
+              id: i.id,
+              stockTransferId: t.id,
+              productId: i.productId,
+              itemName: i.itemName,
+              qty: i.qty
+            })))
+          }
+        }
+      }
+
+      // 7. Sync Additions
+      const additionsRes = await fetch('/api/inventory/addition')
+      if (additionsRes.ok) {
+        const additions = await additionsRes.json()
+        for (const a of additions) {
+          await dexieDb.inventoryAdditions.put({
+            id: a.id,
+            additionId: a.additionId,
+            referenceId: a.referenceId,
+            totalCost: a.totalCost,
+            createdAt: new Date(a.createdAt),
+            updatedAt: new Date(a.updatedAt)
+          })
+          if (a.items) {
+            await dexieDb.inventoryAdditionItems.bulkPut(a.items.map((i: any) => ({
+              id: i.id,
+              inventoryAdditionId: a.id,
+              productId: i.productId,
+              itemName: i.itemName,
+              cost: i.cost,
+              price: i.price,
+              qty: i.qty
+            })))
+          }
+        }
+      }
+
+      // 8. Sync Recent Transactions
+      const txRes = await fetch('/api/transactions')
+      if (txRes.ok) {
+        const transactions = await txRes.json()
+        for (const tx of transactions) {
+          await dexieDb.transactions.put({
+            id: tx.id,
+            transactionId: tx.transactionId,
+            storeId: tx.storeId,
+            subtotal: tx.subtotal,
+            tax: tx.tax,
+            total: tx.total,
+            createdAt: new Date(tx.createdAt || tx.date),
+            synced: 1
+          })
+          
+          if (tx.items) {
+            const items = tx.items.map((item: any) => ({
+              id: item.id,
+              transactionId: tx.id,
+              productId: item.productId || item.id,
+              itemName: item.itemName || item.name,
+              itemPrice: item.itemPrice || item.price,
+              itemCost: item.itemCost || 0,
+              qty: item.qty
+            }))
+            await dexieDb.transactionItems.bulkPut(items)
+          }
         }
       }
 

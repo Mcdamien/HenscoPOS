@@ -39,7 +39,7 @@ interface Transaction {
   id: string
   transactionId: number
   date: string
-  storeId: string
+  store: string
   subtotal: number
   tax: number
   total: number
@@ -268,16 +268,17 @@ export default function POSTerminalView({ stores, currentStore, onStoreChange }:
             setSelectedTransaction({ 
               ...serverTx, 
               transactionId: serverTx.transactionId || newTransaction.transactionId,
-              items: cart 
+              store: currentStore,
+              items: cart.map(i => ({ ...i, itemName: i.name, itemPrice: i.price }))
             })
           } else {
             setSelectedTransaction({ 
               ...newTransaction, 
               transactionId: newTransaction.transactionId,
-              storeId: currentStoreId, 
+              store: currentStore, 
               date: newTransaction.createdAt.toISOString(), 
               items: cart.map(i => ({ ...i, itemName: i.name, itemPrice: i.price })) 
-            } as any)
+            })
             toast.info('Saved locally. Will sync later.')
           }
         } catch (e) {

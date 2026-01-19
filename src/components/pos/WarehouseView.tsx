@@ -82,6 +82,13 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
     return allStores.find(s => s.name === currentStore)?.id
   }, [allStores, currentStore])
 
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(p.itemId).includes(searchTerm)
+    )
+  }, [products, searchTerm])
+
   const toggleProductSelection = (productId: string) => {
     const newSelected = new Set(selectedProductIds)
     if (newSelected.has(productId)) {
@@ -96,7 +103,7 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
     if (selectedProductIds.size === filteredProducts.length) {
       setSelectedProductIds(new Set())
     } else {
-      setSelectedProductIds(new Set(filteredProducts.map(p => p.id)))
+      setSelectedProductIds(new Set(filteredProducts.filter(p => p !== null).map(p => p.id)))
     }
   }
 
@@ -191,11 +198,6 @@ export default function WarehouseView({ stores, currentStore, onStoreChange }: W
     if (stock < 10) return { label: 'Low Stock', className: 'bg-amber-100 text-amber-700' }
     return { label: 'In Stock', className: 'bg-emerald-100 text-emerald-700' }
   }
-
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    String(p.itemId).includes(searchTerm)
-  )
 
   // Helper to get pending returns for a product
   const getPendingReturnsForProduct = (productId: string) => {
