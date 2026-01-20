@@ -71,8 +71,17 @@ export default function SalesReportModal({
     return [...ALLOWED_SHOPS].sort()
   }, [])
 
-  const filteredTransactions = useMemo(() => {
+  const uniqueTransactions = useMemo(() => {
+    const seen = new Set()
     return transactions.filter(tx => {
+      if (!tx.transactionId || seen.has(tx.transactionId)) return false
+      seen.add(tx.transactionId)
+      return true
+    })
+  }, [transactions])
+
+  const filteredTransactions = useMemo(() => {
+    return uniqueTransactions.filter(tx => {
       const matchesStore = storeFilter === 'all' || tx.store === storeFilter
       
       const now = new Date()

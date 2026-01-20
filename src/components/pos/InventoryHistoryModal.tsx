@@ -31,7 +31,7 @@ interface InventoryAddition {
   additionId: number
   referenceId: string | null
   totalCost: number
-  createdAt: string
+  createdAt: string | Date
   items: InventoryAdditionItem[]
 }
 
@@ -64,8 +64,8 @@ export default function InventoryHistoryModal({ isOpen, onClose, initialExpanded
     }))
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',

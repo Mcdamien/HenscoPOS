@@ -55,27 +55,17 @@ export default function AccountingView() {
   useEffect(() => {
     const fetchAccountingData = async () => {
       try {
-        // Simulate API call - replace with actual API endpoints
-        const mockStats: AccountingStats = {
-          totalIncome: 125000,
-          totalExpenditure: 85000,
-          totalAssets: 200000,
-          totalLiabilities: 75000,
-          totalEquity: 125000,
-          netProfit: 40000,
-          cashFlow: 35000
+        const [statsRes, entriesRes] = await Promise.all([
+          fetch('/api/accounting/stats'),
+          fetch('/api/accounting')
+        ])
+
+        if (statsRes.ok && entriesRes.ok) {
+          const statsData = await statsRes.json()
+          const entriesData = await entriesRes.json()
+          setStats(statsData)
+          setEntries(entriesData)
         }
-        const mockEntries: AccountEntry[] = [
-          { id: 1, date: '2024-01-15', description: 'Product Sales', amount: 25000, type: 'income', account: '4010', otherAccount: '', debit: 25000, credit: 0 },
-          { id: 2, date: '2024-01-14', description: 'Office Supplies', amount: 1200, type: 'expenditure', account: '5060', otherAccount: '', debit: 0, credit: 1200 },
-          { id: 3, date: '2024-01-13', description: 'Equipment Purchase', amount: 15000, type: 'asset', account: '1100', otherAccount: '', debit: 15000, credit: 0 },
-          { id: 4, date: '2024-01-12', description: 'Bank Loan', amount: 50000, type: 'liability', account: '2100', otherAccount: '', debit: 0, credit: 50000 },
-          { id: 5, date: '2024-01-11', description: 'Service Revenue', amount: 8000, type: 'income', account: '4020', otherAccount: '', debit: 8000, credit: 0 },
-          { id: 6, date: '2024-01-10', description: 'Owners Investment', amount: 100000, type: 'equity', account: '3010', otherAccount: '', debit: 100000, credit: 0 },
-          { id: 7, date: '2024-01-09', description: 'Retained Earnings', amount: 25000, type: 'equity', account: '3020', otherAccount: '', debit: 25000, credit: 0 },
-        ]
-        setStats(mockStats)
-        setEntries(mockEntries)
       } catch (error) {
         console.error('Failed to fetch accounting data:', error)
       } finally {
@@ -99,12 +89,26 @@ export default function AccountingView() {
     setModalOpen(true)
   }
 
-  const handleTransactionSuccess = (transaction: Omit<AccountEntry, 'id'>) => {
-    const newEntry: AccountEntry = {
-      ...transaction,
-      id: Date.now()
+  const handleTransactionSuccess = async (transaction: Omit<AccountEntry, 'id'>) => {
+    // Refresh all data from server to ensure stats are updated correctly
+    setLoading(true)
+    try {
+      const [statsRes, entriesRes] = await Promise.all([
+        fetch('/api/accounting/stats'),
+        fetch('/api/accounting')
+      ])
+
+      if (statsRes.ok && entriesRes.ok) {
+        const statsData = await statsRes.json()
+        const entriesData = await entriesRes.json()
+        setStats(statsData)
+        setEntries(entriesData)
+      }
+    } catch (error) {
+      console.error('Failed to refresh accounting data:', error)
+    } finally {
+      setLoading(false)
     }
-    setEntries([newEntry, ...entries])
   }
 
   // Helper function to get display name for account
@@ -161,41 +165,70 @@ export default function AccountingView() {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className={isMobile ? "p-0" : ""}>
-        <div className="w-full overflow-x-auto">
-          <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Account</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <CardContent className={isMobile ? "p-4" : ""}>
+        {isMobile ? (
+          <div className="space-y-4">
             {data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-slate-500 py-8">
-                  No entries yet
-                </TableCell>
-              </TableRow>
+              <div className="text-center text-slate-500 py-8">No entries yet</div>
             ) : (
               data.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell>{formatDateDDMMYYYY(entry.date)}</TableCell>
-                  <TableCell>{entry.description}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{getAccountDisplayName(entry)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(entry.amount)}
-                  </TableCell>
-                </TableRow>
+                <Card key={entry.id} className="p-4 border shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                        {formatDateDDMMYYYY(entry.date)}
+                      </p>
+                      <h4 className="font-bold text-slate-800 leading-tight">{entry.description}</h4>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-slate-900 leading-none">
+                        {formatCurrency(entry.amount)}
+                      </p>
+                      <Badge variant="outline" className="mt-2 text-[9px] uppercase font-black">
+                        {getAccountDisplayName(entry)}
+                      </Badge>
+                    </div>
+                  </div>
+                </Card>
               ))
             )}
-          </TableBody>
-        </Table>
-        </div>
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Account</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-slate-500 py-8">
+                      No entries yet
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  data.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>{formatDateDDMMYYYY(entry.date)}</TableCell>
+                      <TableCell>{entry.description}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{getAccountDisplayName(entry)}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(entry.amount)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -296,45 +329,84 @@ export default function AccountingView() {
             <CardHeader>
               <CardTitle>Recent Accounting Entries</CardTitle>
             </CardHeader>
-            <CardContent className={isMobile ? "p-0" : ""}>
-              <div className="w-full overflow-x-auto">
-                <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Account</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <CardContent className={isMobile ? "p-4" : ""}>
+              {isMobile ? (
+                <div className="space-y-4">
                   {entries.slice(0, 10).map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>{formatDateDDMMYYYY(entry.date)}</TableCell>
-                      <TableCell>{entry.description}</TableCell>
-                      <TableCell>
-                        <Badge
-                          className={cn(
-                            entry.type === 'income' && 'bg-green-100 text-green-700',
-                            entry.type === 'expenditure' && 'bg-red-100 text-red-700',
-                            entry.type === 'asset' && 'bg-blue-100 text-blue-700',
-                            entry.type === 'liability' && 'bg-orange-100 text-orange-700',
-                            entry.type === 'equity' && 'bg-purple-100 text-purple-700'
-                          )}
-                        >
-                          {entry.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{getAccountDisplayName(entry)}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(entry.amount)}
-                      </TableCell>
-                    </TableRow>
+                    <Card key={entry.id} className="p-4 border shadow-sm">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                              {formatDateDDMMYYYY(entry.date)}
+                            </p>
+                            <Badge
+                              className={cn(
+                                "text-[9px] uppercase font-black px-1.5 h-4",
+                                entry.type === 'income' && 'bg-green-100 text-green-700',
+                                entry.type === 'expenditure' && 'bg-red-100 text-red-700',
+                                entry.type === 'asset' && 'bg-blue-100 text-blue-700',
+                                entry.type === 'liability' && 'bg-orange-100 text-orange-700',
+                                entry.type === 'equity' && 'bg-purple-100 text-purple-700'
+                              )}
+                            >
+                              {entry.type}
+                            </Badge>
+                          </div>
+                          <h4 className="font-bold text-slate-800 leading-tight">{entry.description}</h4>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-slate-900 leading-none">
+                            {formatCurrency(entry.amount)}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase">
+                            {getAccountDisplayName(entry)}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
                   ))}
-                </TableBody>
-              </Table>
-              </div>
+                </div>
+              ) : (
+                <div className="w-full overflow-x-auto">
+                  <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Account</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {entries.slice(0, 10).map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell>{formatDateDDMMYYYY(entry.date)}</TableCell>
+                        <TableCell>{entry.description}</TableCell>
+                        <TableCell>
+                          <Badge
+                            className={cn(
+                              entry.type === 'income' && 'bg-green-100 text-green-700',
+                              entry.type === 'expenditure' && 'bg-red-100 text-red-700',
+                              entry.type === 'asset' && 'bg-blue-100 text-blue-700',
+                              entry.type === 'liability' && 'bg-orange-100 text-orange-700',
+                              entry.type === 'equity' && 'bg-purple-100 text-purple-700'
+                            )}
+                          >
+                            {entry.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{getAccountDisplayName(entry)}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(entry.amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

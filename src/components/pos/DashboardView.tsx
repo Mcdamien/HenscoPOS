@@ -19,6 +19,7 @@ import RestockItemsModal from '@/components/pos/RestockItemsModal'
 import TransferHistoryModal from '@/components/pos/TransferHistoryModal'
 import InventoryHistoryModal from '@/components/pos/InventoryHistoryModal'
 import { useTransactions, useProducts, useTransactionItems, useStores, useInventory, useTransfers, useAdditions } from "@/hooks/useOfflineData"
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface DashboardStats {
   totalSales: number
@@ -57,7 +58,22 @@ interface ShopGroup {
 }
 
 export default function DashboardView() {
+  const isMobile = useIsMobile()
   const localTransactions = useTransactions() || []
+  
+  // Deduplicate transactions by transactionId to avoid double-counting
+  const uniqueTransactions = useMemo(() => {
+    const seen = new Set()
+    return localTransactions.filter(tx => {
+      // If transactionId is missing, we still want to see it (might be a legacy entry or sync issue)
+      if (tx.transactionId === undefined || tx.transactionId === null) return true
+      
+      if (seen.has(tx.transactionId)) return false
+      seen.add(tx.transactionId)
+      return true
+    })
+  }, [localTransactions])
+
   const allProducts = useProducts() || []
   const allTransactionItems = useTransactionItems() || []
   const allStores = useStores() || []
@@ -81,11 +97,11 @@ export default function DashboardView() {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
     
-    const dailySales = localTransactions
+    const dailySales = uniqueTransactions
       .filter(tx => new Date(tx.createdAt).getTime() >= today)
       .reduce((sum, tx) => sum + tx.total, 0)
       
-    const totalSales = localTransactions.reduce((sum, tx) => sum + tx.total, 0)
+    const totalSales = uniqueTransactions.reduce((sum, tx) => sum + tx.total, 0)
     
     // Improved counting: Count products that are low or out of stock in EACH shop
     let outOfStockCount = 0
@@ -108,30 +124,34 @@ export default function DashboardView() {
     })
 
     // Calculate actual net profit from transaction items
-    const netProfit = allTransactionItems.reduce((sum, item) => {
-      return sum + ((item.itemPrice - item.itemCost) * item.qty)
-    }, 0)
+    // Only for unique transactions to avoid duplicates
+    const uniqueTxIds = new Set(uniqueTransactions.map(t => t.id))
+    const netProfit = allTransactionItems
+      .filter(item => uniqueTxIds.has(item.transactionId))
+      .reduce((sum, item) => {
+        return sum + ((item.itemPrice - item.itemCost) * item.qty)
+      }, 0)
 
     return {
       totalSales,
       dailySales,
       weeklySales: 0, 
       monthlySales: 0, 
-      transactions: localTransactions.length,
+      transactions: uniqueTransactions.length,
       netProfit,
       lowStockCount,
       outOfStockCount,
       shopSummary: []
     }
-  }, [localTransactions, allProducts, allTransactionItems, allInventory, allStores])
+  }, [uniqueTransactions, allProducts, allTransactionItems, allInventory, allStores])
 
   const shopGroups = useMemo(() => {
     // Group transactions by store
     const groups: { [key: string]: any[] } = {}
     const storeMap = new Map(allStores.map(s => [s.id, s.name]))
     
-    localTransactions.forEach(tx => {
-      const storeName = storeMap.get(tx.storeId) || tx.storeId 
+    uniqueTransactions.forEach(tx => {
+      const storeName = storeMap.get(tx.storeId) || tx.storeId || 'Unknown Shop'
       if (!groups[storeName]) {
         groups[storeName] = []
       }
@@ -147,7 +167,7 @@ export default function DashboardView() {
         transactions: sorted.map(t => ({ 
           ...t, 
           date: t.createdAt.toISOString(), 
-          store: storeMap.get(t.storeId) || t.storeId,
+          store: storeMap.get(t.storeId) || t.storeId || 'Unknown Shop',
           items: allTransactionItems.filter(item => item.transactionId === t.id)
         })),
         totalAmount,
@@ -156,32 +176,32 @@ export default function DashboardView() {
         lastDate: sorted[0]?.createdAt.toISOString() || ''
       }
     }).sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime())
-  }, [localTransactions, allStores])
+  }, [uniqueTransactions, allStores, allTransactionItems])
 
   const todayTransactions = useMemo(() => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
     const storeMap = new Map(allStores.map(s => [s.id, s.name]))
 
-    return localTransactions
+    return uniqueTransactions
       .filter(tx => new Date(tx.createdAt).getTime() >= today)
       .map(tx => ({
         ...tx,
         date: tx.createdAt.toISOString(),
-        store: storeMap.get(tx.storeId) || 'Unknown Shop',
+        store: storeMap.get(tx.storeId) || tx.storeId || 'Unknown Shop',
         items: allTransactionItems.filter(item => item.transactionId === tx.id)
       })) as unknown as Transaction[]
-  }, [localTransactions, allStores, allTransactionItems])
+  }, [uniqueTransactions, allStores, allTransactionItems])
 
   const transactionsWithStoreNames = useMemo(() => {
     const storeMap = new Map(allStores.map(s => [s.id, s.name]))
-    return localTransactions.map(tx => ({
+    return uniqueTransactions.map(tx => ({
       ...tx,
       date: tx.createdAt.toISOString(),
-      store: storeMap.get(tx.storeId) || 'Unknown Shop',
+      store: storeMap.get(tx.storeId) || tx.storeId || 'Unknown Shop',
       items: allTransactionItems.filter(item => item.transactionId === tx.id)
     })) as unknown as Transaction[]
-  }, [localTransactions, allStores, allTransactionItems])
+  }, [uniqueTransactions, allStores, allTransactionItems])
 
   const bestSeller = useMemo(() => {
     if (allTransactionItems.length === 0) return null
@@ -390,58 +410,182 @@ export default function DashboardView() {
           Analytics
         </Button>
       </div>
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table className="min-w-[600px] md:min-w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Store</TableHead>
-                <TableHead>Date Range</TableHead>
-                <TableHead>Transactions</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shopGroups.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500 py-8">
-                    No transactions yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                shopGroups.slice(0, 10).map((shop, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium whitespace-nowrap">{shop.store}</TableCell>
-                    <TableCell className="whitespace-nowrap text-xs">
-                      {shop.firstDate ? formatDateDDMMYYYY(shop.firstDate) : 'N/A'} - {shop.lastDate ? formatDateDDMMYYYY(shop.lastDate) : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="bg-slate-50 whitespace-nowrap">
-                        {shop.transactionCount} tx{shop.transactionCount !== 1 ? 's' : ''}
+      <Card className="overflow-hidden border-none md:border shadow-none md:shadow-sm">
+        {isMobile ? (
+          <div className="space-y-3">
+            {shopGroups.length === 0 ? (
+              <div className="text-center text-slate-500 py-8 bg-white border rounded-xl">No transactions yet</div>
+            ) : (
+              shopGroups.slice(0, 10).map((shop, index) => (
+                <Card key={index} className="p-4 border shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="font-bold text-slate-800">{shop.store}</h4>
+                      <p className="text-[10px] text-slate-500 uppercase mt-1">
+                        {shop.firstDate ? formatDateDDMMYYYY(shop.firstDate) : 'N/A'} - {shop.lastDate ? formatDateDDMMYYYY(shop.lastDate) : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-emerald-600">{formatCurrency(shop.totalAmount)}</p>
+                      <Badge variant="outline" className="mt-2 text-[9px] font-black uppercase bg-slate-50">
+                        {shop.transactionCount} TX
                       </Badge>
-                    </TableCell>
-                    <TableCell className="font-bold text-emerald-600 whitespace-nowrap">{formatCurrency(shop.totalAmount)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="h-8"
-                        onClick={() => {
-                          setSelectedStoreName(shop.store)
-                          setSelectedShopTransactions(shop.transactions)
-                        }}
-                      >
-                        View
-                      </Button>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full mt-2 h-9 font-bold"
+                    onClick={() => {
+                      setSelectedStoreName(shop.store)
+                      setSelectedShopTransactions(shop.transactions)
+                    }}
+                  >
+                    View Details
+                  </Button>
+                </Card>
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table className="min-w-[600px] md:min-w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Store</TableHead>
+                  <TableHead>Date Range</TableHead>
+                  <TableHead>Transactions</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shopGroups.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                      No transactions yet
                     </TableCell>
                   </TableRow>
+                ) : (
+                  shopGroups.slice(0, 10).map((shop, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium whitespace-nowrap">{shop.store}</TableCell>
+                      <TableCell className="whitespace-nowrap text-xs">
+                        {shop.firstDate ? formatDateDDMMYYYY(shop.firstDate) : 'N/A'} - {shop.lastDate ? formatDateDDMMYYYY(shop.lastDate) : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-slate-50 whitespace-nowrap">
+                          {shop.transactionCount} tx{shop.transactionCount !== 1 ? 's' : ''}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-bold text-emerald-600 whitespace-nowrap">{formatCurrency(shop.totalAmount)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-8"
+                          onClick={() => {
+                            setSelectedStoreName(shop.store)
+                            setSelectedShopTransactions(shop.transactions)
+                          }}
+                        >
+                          View
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
+      
+      {/* Detailed Recent Transactions */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Detailed Recent Transactions</h3>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setShowReports(true)}
+            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+          >
+            Full History
+          </Button>
+        </div>
+        <Card className="overflow-hidden border-none md:border shadow-none md:shadow-sm">
+          {isMobile ? (
+            <div className="space-y-3">
+              {transactionsWithStoreNames.length === 0 ? (
+                <div className="text-center text-slate-500 py-8 bg-white border rounded-xl">No transactions found</div>
+              ) : (
+                transactionsWithStoreNames.slice(0, 10).map((tx) => (
+                  <Card key={tx.id} className="p-4 border shadow-sm" onClick={() => setSelectedTransaction(tx)}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-bold text-slate-400">#{tx.transactionId}</span>
+                          <span className="text-[10px] text-slate-500">{formatDateDDMMYYYY(tx.date)}</span>
+                        </div>
+                        <h4 className="font-bold text-slate-800">{tx.store}</h4>
+                        <Badge variant="secondary" className="mt-2 text-[9px] bg-slate-50 text-slate-600 border-none">
+                          {tx.items?.length || 0} ITEM{(tx.items?.length || 0) !== 1 ? 'S' : ''}
+                        </Badge>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-emerald-600">{formatCurrency(tx.total)}</p>
+                        <Button variant="ghost" size="sm" className="mt-2 h-8 text-[10px] uppercase font-bold text-slate-400">
+                          Receipt
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
                 ))
               )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table className="min-w-[600px] md:min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Store</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactionsWithStoreNames.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                        No individual transactions found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    transactionsWithStoreNames.slice(0, 10).map((tx) => (
+                      <TableRow key={tx.id}>
+                        <TableCell className="font-medium whitespace-nowrap text-xs">#{tx.transactionId}</TableCell>
+                        <TableCell className="whitespace-nowrap">{tx.store}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">{formatDateDDMMYYYY(tx.date)}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <Badge variant="secondary" className="bg-slate-50 text-slate-600 border-none font-normal">
+                            {tx.items?.length || 0} { (tx.items?.length || 0) === 1 ? 'item' : 'items' }
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-emerald-600 whitespace-nowrap">
+                          {formatCurrency(tx.total)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </Card>
+      </div>
 
       {/* Recent Stock Transfers */}
       <div className="mt-8">
@@ -461,57 +605,93 @@ export default function DashboardView() {
             </Button>
           </div>
         </div>
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table className="min-w-[600px] md:min-w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Transfer ID</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Destination</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead className="text-right">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transfers.length === 0 ? (
+        <Card className="overflow-hidden border-none md:border shadow-none md:shadow-sm">
+          {isMobile ? (
+            <div className="space-y-3">
+              {transfers.length === 0 ? (
+                <div className="text-center text-slate-500 py-8 bg-white border rounded-xl">No transfers yet</div>
+              ) : (
+                transfers.slice(0, 5).map((transfer) => (
+                  <Card key={transfer.id} className="p-4 border shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-bold text-slate-400">#TR-{transfer.transferId}</span>
+                          <span className="text-[10px] text-slate-500">{formatDateDDMMYYYY(transfer.createdAt)}</span>
+                        </div>
+                        <h4 className="font-bold text-slate-800">{transfer.toStore}</h4>
+                      </div>
+                      <Badge className="bg-emerald-100 text-emerald-700 border-none text-[9px] font-black uppercase">
+                        {transfer.status}
+                      </Badge>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full h-9 font-bold text-emerald-600 border-emerald-100"
+                      onClick={() => {
+                        setTransferIdToExpand(transfer.id)
+                        setShowTransferHistory(true)
+                      }}
+                    >
+                      {transfer.items.length} {transfer.items.length === 1 ? 'Item' : 'Items'} - View Details
+                    </Button>
+                  </Card>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table className="min-w-[600px] md:min-w-full">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">
-                      No transfers yet
-                    </TableCell>
+                    <TableHead>Transfer ID</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Destination</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead className="text-right">Status</TableHead>
                   </TableRow>
-                ) : (
-                  transfers.slice(0, 5).map((transfer) => (
-                    <TableRow key={transfer.id}>
-                      <TableCell className="font-medium whitespace-nowrap">#TR-{transfer.transferId}</TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">{formatDateDDMMYYYY(transfer.createdAt)}</TableCell>
-                      <TableCell>
-                        <span className="font-medium whitespace-nowrap">{transfer.toStore}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          onClick={() => {
-                            setTransferIdToExpand(transfer.id)
-                            setShowTransferHistory(true)
-                          }}
-                        >
-                          {transfer.items.length} {transfer.items.length === 1 ? 'item' : 'items'}
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none text-[10px] whitespace-nowrap">
-                          {transfer.status}
-                        </Badge>
+                </TableHeader>
+                <TableBody>
+                  {transfers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                        No transfers yet
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    transfers.slice(0, 5).map((transfer) => (
+                      <TableRow key={transfer.id}>
+                        <TableCell className="font-medium whitespace-nowrap">#TR-{transfer.transferId}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">{formatDateDDMMYYYY(transfer.createdAt)}</TableCell>
+                        <TableCell>
+                          <span className="font-medium whitespace-nowrap">{transfer.toStore}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            onClick={() => {
+                              setTransferIdToExpand(transfer.id)
+                              setShowTransferHistory(true)
+                            }}
+                          >
+                            {transfer.items.length} {transfer.items.length === 1 ? 'item' : 'items'}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none text-[10px] whitespace-nowrap">
+                            {transfer.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -533,57 +713,93 @@ export default function DashboardView() {
             </Button>
           </div>
         </div>
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table className="min-w-[600px] md:min-w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Total Cost</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {inventoryAdditions.length === 0 ? (
+        <Card className="overflow-hidden border-none md:border shadow-none md:shadow-sm">
+          {isMobile ? (
+            <div className="space-y-3">
+              {inventoryAdditions.length === 0 ? (
+                <div className="text-center text-slate-500 py-8 bg-white border rounded-xl">No inventory additions yet</div>
+              ) : (
+                inventoryAdditions.slice(0, 5).map((addition) => (
+                  <Card key={addition.id} className="p-4 border shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-bold text-slate-400">#INV-{addition.additionId}</span>
+                          <span className="text-[10px] text-slate-500">{formatDateDDMMYYYY(addition.createdAt)}</span>
+                        </div>
+                        <p className="text-sm font-black text-emerald-600">{formatCurrency(addition.totalCost)}</p>
+                      </div>
+                      <Badge className="bg-emerald-100 text-emerald-700 border-none text-[9px] font-black uppercase">
+                        Completed
+                      </Badge>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full h-9 font-bold text-emerald-600 border-emerald-100"
+                      onClick={() => {
+                        setSelectedInventoryId(addition.id)
+                        setShowInventoryHistory(true)
+                      }}
+                    >
+                      {addition.items.length} {addition.items.length === 1 ? 'Item' : 'Items'} - View Details
+                    </Button>
+                  </Card>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table className="min-w-[600px] md:min-w-full">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">
-                      No inventory additions yet
-                    </TableCell>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Total Cost</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
-                ) : (
-                  inventoryAdditions.slice(0, 5).map((addition) => (
-                    <TableRow key={addition.id}>
-                      <TableCell className="font-medium whitespace-nowrap">#INV-{addition.additionId}</TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">{formatDateDDMMYYYY(addition.createdAt)}</TableCell>
-                      <TableCell className="font-medium text-emerald-600 whitespace-nowrap">
-                        {formatCurrency(addition.totalCost)}
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          onClick={() => {
-                            setSelectedInventoryId(addition.id)
-                            setShowInventoryHistory(true)
-                          }}
-                        >
-                          {addition.items.length} {addition.items.length === 1 ? 'item' : 'items'}
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none text-[10px] whitespace-nowrap">
-                          Completed
-                        </Badge>
+                </TableHeader>
+                <TableBody>
+                  {inventoryAdditions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                        No inventory additions yet
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    inventoryAdditions.slice(0, 5).map((addition) => (
+                      <TableRow key={addition.id}>
+                        <TableCell className="font-medium whitespace-nowrap">#INV-{addition.additionId}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">{formatDateDDMMYYYY(addition.createdAt)}</TableCell>
+                        <TableCell className="font-medium text-emerald-600 whitespace-nowrap">
+                          {formatCurrency(addition.totalCost)}
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            onClick={() => {
+                              setSelectedInventoryId(addition.id)
+                              setShowInventoryHistory(true)
+                            }}
+                          >
+                            {addition.items.length} {addition.items.length === 1 ? 'item' : 'items'}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none text-[10px] whitespace-nowrap">
+                            Completed
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </Card>
       </div>
 

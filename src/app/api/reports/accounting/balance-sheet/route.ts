@@ -1,65 +1,112 @@
 import { NextResponse } from 'next/server'
-
-// Mock accounting data based on the seed data structure
-const getAccountingData = () => {
-  // Current Assets (1xxx)
-  const currentAssets = [
-    { code: '1010', name: 'Cash', balance: 45000 },
-    { code: '1020', name: 'Accounts Receivable', balance: 28000 },
-    { code: '1030', name: 'Inventory', balance: 67000 },
-    { code: '1040', name: 'Prepaid Expenses', balance: 8500 },
-  ]
-
-  // Fixed Assets
-  const fixedAssets = [
-    { code: '1100', name: 'Equipment', balance: 85000 },
-    { code: '1110', name: 'Vehicle', balance: 45000 },
-    { code: '1120', name: 'Building', balance: 250000 },
-    { code: '1190', name: 'Accumulated Depreciation', balance: -25000 },
-  ]
-
-  // Current Liabilities
-  const currentLiabilities = [
-    { code: '2010', name: 'Accounts Payable', balance: 32000 },
-    { code: '2020', name: 'Credit Card Balances', balance: 8500 },
-    { code: '2030', name: 'Short-Term Loans', balance: 25000 },
-  ]
-
-  // Long-term Liabilities
-  const longTermLiabilities = [
-    { code: '2100', name: 'Bank Loans', balance: 120000 },
-    { code: '2110', name: 'Mortgages', balance: 180000 },
-  ]
-
-  // Equity
-  const equityAccounts = [
-    { code: '3010', name: 'Owner\'s Capital', balance: 150000 },
-    { code: '3020', name: 'Retained Earnings', balance: 85000 },
-    { code: '3030', name: 'Owner\'s Draws/Dividends', balance: -25000 },
-  ]
-
-  return {
-    currentAssets,
-    fixedAssets,
-    currentLiabilities,
-    longTermLiabilities,
-    equityAccounts
-  }
-}
+import { db } from '@/lib/db'
+import { AccountType, AccountSubType } from '@prisma/client'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
+    const endDateStr = searchParams.get('endDate')
+    const asOfDate = endDateStr ? new Date(endDateStr) : new Date()
 
-    const {
-      currentAssets,
-      fixedAssets,
-      currentLiabilities,
-      longTermLiabilities,
-      equityAccounts
-    } = getAccountingData()
+    // Get all asset, liability, and equity accounts
+    const accounts = await db.account.findMany({
+      where: {
+        type: {
+          in: [AccountType.ASSET, AccountType.LIABILITY, AccountType.EQUITY]
+        }
+      },
+      include: {
+        journalEntries: {
+          where: {
+            journalEntry: {
+              date: {
+                lte: asOfDate
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Also need to include Net Income (Revenue - Expenses) up to asOfDate in Equity (Retained Earnings)
+    const pnlAccounts = await db.account.findMany({
+      where: {
+        type: {
+          in: [AccountType.REVENUE, AccountType.EXPENSE]
+        }
+      },
+      include: {
+        journalEntries: {
+          where: {
+            journalEntry: {
+              date: {
+                lte: asOfDate
+              }
+            }
+          }
+        }
+      }
+    })
+
+    const totalRevenue = pnlAccounts
+      .filter(acc => acc.type === AccountType.REVENUE)
+      .reduce((sum, acc) => {
+        return sum + acc.journalEntries.reduce((s, line) => s + (line.credit - line.debit), 0)
+      }, 0)
+
+    const totalExpenses = pnlAccounts
+      .filter(acc => acc.type === AccountType.EXPENSE)
+      .reduce((sum, acc) => {
+        return sum + acc.journalEntries.reduce((s, line) => s + (line.debit - line.credit), 0)
+      }, 0)
+
+    const netIncome = totalRevenue - totalExpenses
+
+    const formatAccount = (acc: any) => {
+      let balance = 0
+      if (acc.type === AccountType.ASSET || acc.type === AccountType.EXPENSE) {
+        balance = acc.journalEntries.reduce((sum: number, line: any) => sum + (line.debit - line.credit), 0)
+      } else {
+        balance = acc.journalEntries.reduce((sum: number, line: any) => sum + (line.credit - line.debit), 0)
+      }
+      return {
+        code: acc.code,
+        name: acc.name,
+        balance
+      }
+    }
+
+    const currentAssets = accounts
+      .filter(acc => acc.type === AccountType.ASSET && acc.subType === AccountSubType.CURRENT_ASSET)
+      .map(formatAccount)
+      .filter(acc => acc.balance !== 0)
+
+    const fixedAssets = accounts
+      .filter(acc => acc.type === AccountType.ASSET && acc.subType === AccountSubType.FIXED_ASSET)
+      .map(formatAccount)
+      .filter(acc => acc.balance !== 0)
+
+    const currentLiabilities = accounts
+      .filter(acc => acc.type === AccountType.LIABILITY && acc.subType === AccountSubType.CURRENT_LIABILITY)
+      .map(formatAccount)
+      .filter(acc => acc.balance !== 0)
+
+    const longTermLiabilities = accounts
+      .filter(acc => acc.type === AccountType.LIABILITY && acc.subType === AccountSubType.LONG_TERM_LIABILITY)
+      .map(formatAccount)
+      .filter(acc => acc.balance !== 0)
+
+    const equityAccounts = accounts
+      .filter(acc => acc.type === AccountType.EQUITY)
+      .map(formatAccount)
+      .filter(acc => acc.balance !== 0)
+
+    // Add Net Income to Retained Earnings or as a separate line
+    equityAccounts.push({
+      code: 'NET-INC',
+      name: 'Net Income (Current Period)',
+      balance: netIncome
+    })
 
     // Calculate totals
     const totalCurrentAssets = currentAssets.reduce((sum, acc) => sum + acc.balance, 0)
@@ -72,7 +119,6 @@ export async function GET(request: Request) {
 
     const totalEquity = equityAccounts.reduce((sum, acc) => sum + acc.balance, 0)
 
-    // Calculate accounting equation
     const liabilitiesAndEquity = totalLiabilities + totalEquity
     const balanceCheck = totalAssets - liabilitiesAndEquity
 
@@ -80,7 +126,7 @@ export async function GET(request: Request) {
       success: true,
       data: {
         period: {
-          asOfDate: endDate || new Date().toISOString().split('T')[0]
+          asOfDate: asOfDate.toISOString().split('T')[0]
         },
         balanceSheet: {
           assets: {
@@ -125,4 +171,3 @@ export async function GET(request: Request) {
     )
   }
 }
-
