@@ -20,6 +20,7 @@ import TransferHistoryModal from '@/components/pos/TransferHistoryModal'
 import InventoryHistoryModal from '@/components/pos/InventoryHistoryModal'
 import { useTransactions, useProducts, useTransactionItems, useStores, useInventory, useTransfers, useAdditions } from "@/hooks/useOfflineData"
 import { useIsMobile } from '@/hooks/use-mobile'
+import { ALLOWED_SHOPS } from '@/lib/constants'
 
 interface DashboardStats {
   totalSales: number
@@ -60,23 +61,28 @@ interface ShopGroup {
 export default function DashboardView() {
   const isMobile = useIsMobile()
   const localTransactions = useTransactions() || []
+  const allProducts = useProducts() || []
+  const allTransactionItems = useTransactionItems() || []
+  const allStores = useStores() || []
   
   // Deduplicate transactions by transactionId to avoid double-counting
   const uniqueTransactions = useMemo(() => {
     const seen = new Set()
-    return localTransactions.filter(tx => {
-      // If transactionId is missing, we still want to see it (might be a legacy entry or sync issue)
-      if (tx.transactionId === undefined || tx.transactionId === null) return true
-      
-      if (seen.has(tx.transactionId)) return false
-      seen.add(tx.transactionId)
-      return true
-    })
-  }, [localTransactions])
+    const storeMap = new Map(allStores.map(s => [s.id, s.name]))
 
-  const allProducts = useProducts() || []
-  const allTransactionItems = useTransactionItems() || []
-  const allStores = useStores() || []
+    return localTransactions.filter(tx => {
+      // 1. Deduplication
+      if (tx.transactionId !== undefined && tx.transactionId !== null) {
+        if (seen.has(tx.transactionId)) return false
+        seen.add(tx.transactionId)
+      }
+      
+      // 2. Filter by ALLOWED_SHOPS
+      const storeName = storeMap.get(tx.storeId) || tx.storeId || 'Unknown Shop'
+      return ALLOWED_SHOPS.includes(storeName as any)
+    })
+  }, [localTransactions, allStores])
+
   const allInventory = useInventory() || []
   const transfers = useTransfers() || []
   const inventoryAdditions = useAdditions() || []
